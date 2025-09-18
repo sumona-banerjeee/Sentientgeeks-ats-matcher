@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SentientGeeks ATS Resume Matcher</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <div class="container">
+                <h1 class="logo">SentientGeeks ATS</h1>
+                <p class="tagline">AI-Powered Resume Matching System</p>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="container">
+                <!-- Step 1: Job Description Upload -->
+                <section id="jd-section" class="section active">
+                    <div class="card">
+                        <h2>Step 1: Upload Job Description</h2>
+                        <div class="upload-area" id="jd-upload-area">
+                            <div class="upload-options">
+                                <div class="upload-option">
+                                    <input type="file" id="jd-file" accept=".pdf" style="display: none;">
+                                    <button type="button" class="btn btn-primary" onclick="document.getElementById('jd-file').click()">
+                                        📄 Upload JD File (PDF)
+                                    </button>
+                                </div>
+                                <div class="or-divider">OR</div>
+                                <div class="upload-option">
+                                    <textarea id="jd-text" placeholder="Paste job description text here..." rows="8"></textarea>
+                                </div>
+                            </div>
+                            <button id="process-jd-btn" class="btn btn-secondary" disabled>Process Job Description</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 2: JD Structure Approval -->
+                <section id="structure-section" class="section">
+                    <div class="card">
+                        <h2>Step 2: Review & Approve JD Structure</h2>
+                        <div id="structure-content">
+                            <div id="structured-jd-display"></div>
+                            <div class="structure-actions">
+                                <div class="feedback-area">
+                                    <textarea id="structure-feedback" placeholder="Enter feedback for changes (optional)..." rows="3"></textarea>
+                                </div>
+                                <div class="action-buttons">
+                                    <button id="approve-structure-btn" class="btn btn-success">✓ Approve Structure</button>
+                                    <button id="request-changes-btn" class="btn btn-warning">✏️ Request Changes</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 3: Skills Weightage -->
+                <section id="skills-section" class="section">
+                    <div class="card">
+                        <h2>Step 3: Set Skills Weightage</h2>
+                        <div id="skills-content">
+                            <p class="instruction">Assign weightage (1-100) to skills based on priority:</p>
+                            <div id="skills-weightage-form"></div>
+                            <button id="set-weightage-btn" class="btn btn-primary">Set Weightage & Continue</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 4: Resume Upload -->
+                <section id="resume-section" class="section">
+                    <div class="card">
+                        <h2>Step 4: Upload Resumes</h2>
+                        <div class="upload-area">
+                            <input type="file" id="resume-files" multiple accept=".pdf" style="display: none;">
+                            <div class="upload-info">
+                                <button type="button" class="btn btn-primary" onclick="document.getElementById('resume-files').click()">
+                                    📁 Select Resume Files (PDF)
+                                </button>
+                                <p class="upload-note">You can select multiple files at once (up to 50 resumes)</p>
+                            </div>
+                            <div id="selected-files-list"></div>
+                            <button id="upload-resumes-btn" class="btn btn-secondary" disabled>Upload & Process Resumes</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 5: Matching Results -->
+                <section id="results-section" class="section">
+                    <div class="card">
+                        <h2>Step 5: ATS Matching Results</h2>
+                        <div id="matching-controls">
+                            <button id="start-matching-btn" class="btn btn-success">🚀 Start ATS Matching</button>
+                        </div>
+                        <div id="results-content"></div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="spinner"></div>
+            <p id="loading-message">Processing...</p>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/jd-processor.js"></script>
+    <script src="/static/js/resume-uploader.js"></script>
+    <script src="/static/js/matcher.js?v=3.0"></script>
+
+    <!-- EMERGENCY FIX FOR VIEW DETAILS MODAL -->
+    <script>
+    console.log('🔥 EMERGENCY FIX LOADED');
+
+    // Override the problematic function with bulletproof version
+    function showCandidateDetails(sessionId, resumeId) {
+        console.log('🔍 EMERGENCY FIX: showCandidateDetails called with:', sessionId, resumeId);
+        
+        if (typeof Utils !== 'undefined' && Utils.showLoading) {
+            Utils.showLoading('Loading candidate details...');
+        }
+        
+        fetch(`/api/matching/detailed/${sessionId}/${resumeId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('🔍 API Response:', data);
+                
+                // Create modal with inline styles to avoid CSS dependencies
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+                    background: rgba(0,0,0,0.7); display: flex; 
+                    justify-content: center; align-items: center; z-index: 9999;
+                    font-family: Arial, sans-serif;
+                `;
+                modal.className = 'emergency-candidate-modal';
+                
+                // Safe data extraction with multiple fallback paths
+                const resumeData = data?.resume_info?.structured_data || {};
+                const personalInfo = data?.resume_info?.personal_info || {};
+                const professionalInfo = data?.resume_info?.professional_info || {};
+                const matchingData = data?.matching_analysis || {};
+                
+                // Extract information with fallbacks
+                const name = personalInfo.name || resumeData.name || data?.resume_info?.filename?.replace('.pdf', '').replace(/_/g, ' ') || 'Unknown Candidate';
+                const email = personalInfo.email || resumeData.email || 'Not provided';
+                const phone = personalInfo.phone || resumeData.phone || 'Not provided';
+                const linkedin = personalInfo.linkedin || resumeData.linkedin || 'Not provided';
+                const github = personalInfo.github || resumeData.github || 'Not provided';
+                const currentRole = professionalInfo.current_role || resumeData.current_role || 'Not specified';
+                const experience = professionalInfo.total_experience || resumeData.total_experience || 0;
+                const skills = professionalInfo.skills || resumeData.skills || [];
+                const education = professionalInfo.education || resumeData.education || [];
+                const certifications = professionalInfo.certifications || resumeData.certifications || [];
+                
+                const overallScore = matchingData.overall_score || 0;
+                const skillScore = matchingData.skill_match_score || 0;
+                const experienceScore = matchingData.experience_score || 0;
+                const rank = matchingData.rank || matchingData.rank_position || 'N/A';
+                
+                modal.innerHTML = `
+                    <div style="background: white; padding: 0; border-radius: 12px; max-width: 800px; width: 95%; max-height: 90vh; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                        <!-- Header -->
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                            <h2 style="margin: 0; font-size: 24px;">Candidate Details</h2>
+                            <button onclick="closeEmergencyModal()" style="background: none; border: none; color: white; font-size: 28px; cursor: pointer; padding: 0; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">&times;</button>
+                        </div>
+                        
+                        <!-- Content -->
+                        <div style="padding: 20px; max-height: calc(90vh - 160px); overflow-y: auto;">
+                            <!-- Personal Information -->
+                            <div style="margin-bottom: 25px;">
+                                <h3 style="color: #333; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #eee;">👤 Personal Information</h3>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div><strong>Name:</strong> ${name}</div>
+                                    <div><strong>Email:</strong> ${email !== 'Not provided' ? `<a href="mailto:${email}" style="color: #007bff; text-decoration: none;">${email}</a>` : email}</div>
+                                    <div><strong>Phone:</strong> ${phone !== 'Not provided' ? `<a href="tel:${phone}" style="color: #007bff; text-decoration: none;">${phone}</a>` : phone}</div>
+                                    <div><strong>LinkedIn:</strong> ${linkedin !== 'Not provided' ? `<a href="${linkedin}" target="_blank" style="color: #007bff; text-decoration: none;">View Profile</a>` : linkedin}</div>
+                                    <div style="grid-column: 1 / -1;"><strong>GitHub:</strong> ${github !== 'Not provided' ? `<a href="${github}" target="_blank" style="color: #007bff; text-decoration: none;">View Profile</a>` : github}</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Professional Information -->
+                            <div style="margin-bottom: 25px;">
+                                <h3 style="color: #333; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #eee;">💼 Professional Information</h3>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div><strong>Current Role:</strong> ${currentRole}</div>
+                                    <div><strong>Total Experience:</strong> ${experience} years</div>
+                                    <div style="grid-column: 1 / -1;">
+                                        <strong>Skills:</strong>
+                                        <div style="margin-top: 8px;">
+                                            ${Array.isArray(skills) && skills.length > 0 ? 
+                                                skills.map(skill => `<span style="background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px; margin: 2px 4px 2px 0; display: inline-block; font-size: 13px;">${skill}</span>`).join('') : 
+                                                '<span style="color: #666; font-style: italic;">No skills information available</span>'
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- ATS Matching Analysis -->
+                            <div style="margin-bottom: 25px;">
+                                <h3 style="color: #333; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #eee;">📊 ATS Matching Analysis</h3>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                                    <div style="text-align: center; padding: 15px; border: 2px solid #eee; border-radius: 8px;">
+                                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Overall Score</div>
+                                        <div style="font-size: 24px; font-weight: bold; color: #4caf50;">${overallScore}%</div>
+                                    </div>
+                                    <div style="text-align: center; padding: 15px; border: 2px solid #eee; border-radius: 8px;">
+                                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Skill Match</div>
+                                        <div style="font-size: 24px; font-weight: bold; color: #2196f3;">${skillScore}%</div>
+                                    </div>
+                                    <div style="text-align: center; padding: 15px; border: 2px solid #eee; border-radius: 8px;">
+                                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Experience</div>
+                                        <div style="font-size: 24px; font-weight: bold; color: #ff9800;">${experienceScore}%</div>
+                                    </div>
+                                
+                                </div>
+                            </div>
+                            
+                            <!-- Education & Certifications -->
+                            <div style="margin-bottom: 25px;">
+                                <h3 style="color: #333; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #eee;">🎓 Education & Certifications</h3>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                    <div>
+                                        <strong>Education:</strong>
+                                        <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                            ${Array.isArray(education) && education.length > 0 ? 
+                                                education.map(edu => `<li style="margin: 4px 0;">${edu}</li>`).join('') : 
+                                                '<li style="color: #666; font-style: italic;">No education information available</li>'
+                                            }
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <strong>Certifications:</strong>
+                                        <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                            ${Array.isArray(certifications) && certifications.length > 0 ? 
+                                                certifications.map(cert => `<li style="margin: 4px 0;">${cert}</li>`).join('') : 
+                                                '<li style="color: #666; font-style: italic;">No certifications available</li>'
+                                            }
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Debug Information -->
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-top: 20px;">
+                                <details>
+                                    <summary style="cursor: pointer; font-weight: bold; margin-bottom: 10px;">🔍 Debug Information</summary>
+                                    <div style="font-size: 11px; font-family: monospace;">
+                                        <strong>API Response Structure:</strong><br>
+                                        Has resume_info: ${!!data?.resume_info}<br>
+                                        Has structured_data: ${!!data?.resume_info?.structured_data}<br>
+                                        Has personal_info: ${!!data?.resume_info?.personal_info}<br>
+                                        Has matching_analysis: ${!!data?.matching_analysis}<br>
+                                        <br>
+                                        <strong>Full API Response:</strong>
+                                        <pre style="background: white; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto; font-size: 10px;">${JSON.stringify(data, null, 2)}</pre>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+                        
+                        <!-- Footer -->
+                        <div style="padding: 20px; border-top: 1px solid #eee; background: #f9f9f9; display: flex; justify-content: flex-end; gap: 10px;">
+                            <button onclick="closeEmergencyModal()" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">Close</button>
+                            <button onclick="window.location.href='mailto:${email}?subject=Job Opportunity - Software Engineer Position'" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">Contact Candidate</button>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                document.body.style.overflow = 'hidden';
+                
+                if (typeof Utils !== 'undefined' && Utils.hideLoading) {
+                    Utils.hideLoading();
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error:', error);
+                
+                if (typeof Utils !== 'undefined') {
+                    if (Utils.showToast) {
+                        Utils.showToast('Error loading candidate details: ' + error.message, 'error');
+                    }
+                    if (Utils.hideLoading) {
+                        Utils.hideLoading();
+                    }
+                } else {
+                    alert('Error loading candidate details: ' + error.message);
+                }
+            });
+    }
+
+    // Function to close the emergency modal
+    function closeEmergencyModal() {
+        const modal = document.querySelector('.emergency-candidate-modal');
+        if (modal) {
+            modal.remove();
+            document.body.style.overflow = 'auto';
+        }
+    }
+
+    // Override the global function to ensure it works
+    window.showCandidateDetails = showCandidateDetails;
+    window.closeEmergencyModal = closeEmergencyModal;
+
+    // Close modal when clicking outside
+    document.addEventListener('click', function(event) {
+        if (event.target.classList.contains('emergency-candidate-modal')) {
+            closeEmergencyModal();
+        }
+    });
+
+    console.log('✅ Emergency fix functions registered successfully');
+    </script>
+</body>
+</html>

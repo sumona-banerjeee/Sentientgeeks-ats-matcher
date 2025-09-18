@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+
+# Virtual envs
+venv/
+.env
+.env.*    # sometimes you have .env.local etc
+
+# Databases
+*.db
+*.sqlite3
+ats_matcher.db
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+*.log
+
+# Byte-compiled / cache
+*.pyc
