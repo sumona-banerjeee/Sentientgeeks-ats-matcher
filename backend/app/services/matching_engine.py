@@ -1260,6 +1260,216 @@ class MatchingEngine:
         'key_skills': ['database management', 'sql', 'mysql', 'oracle', 'postgresql', 'data migration'],
         'patterns': ['database management', 'dbms specialist', 'database support'],
         'weight': 1.0
+    },
+    {
+    'role': 'SQL Developer',
+    'key_skills': ['sql', 'tsql', 'stored procedures', 'database', 'queries', 'ssrs'],
+    'patterns': ['sql developer', 'tsql', 'ssrs', 'stored procedure', 'database queries'],
+    'weight': 1.0
+    },
+    {
+    'role': 'Power BI Developer',
+    'key_skills': ['power bi', 'dax', 'data modeling', 'visualization', 'reporting', 'power query'],
+    'patterns': ['power bi developer', 'powerbi', 'dax', 'power query', 'data visualization'],
+    'weight': 1.0
+    },
+    {
+    'role': 'Content Writer',
+    'key_skills': ['content writing', 'seo', 'copywriting', 'blogs', 'creative writing', 'proofreading'],
+    'patterns': ['content writer', 'seo writer', 'copywriter', 'creative writer', 'web content'],
+    'weight': 1.0
+    },
+    {
+        'role': 'Technical Writer',
+        'key_skills': ['documentation', 'technical writing', 'manuals', 'api docs', 'user guides'],
+        'patterns': ['technical writer', 'documentation specialist', 'api documentation'],
+        'weight': 1.0
+    },
+    {
+        'role': 'SEO Specialist',
+        'key_skills': ['seo', 'google analytics', 'keyword research', 'on-page seo', 'semrush'],
+        'patterns': ['seo specialist', 'seo analyst', 'seo executive'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Digital Marketing Specialist',
+        'key_skills': ['digital marketing', 'seo', 'sem', 'google ads', 'social media', 'analytics'],
+        'patterns': ['digital marketer', 'digital marketing specialist', 'digital marketing executive'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Customer Support Executive',
+        'key_skills': ['customer support', 'crm', 'troubleshooting', 'email support', 'communication'],
+        'patterns': ['customer support', 'support executive', 'technical support'],
+        'weight': 1.0
+    },
+    {
+        'role': 'HR Executive',
+        'key_skills': ['recruitment', 'hr operations', 'onboarding', 'employee engagement', 'interviews'],
+        'patterns': ['hr executive', 'human resource executive', 'hr operations'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Human Resource Executive',
+        'key_skills': ['recruitment', 'hr operations', 'onboarding', 'employee engagement', 'interviews'],
+        'patterns': ['hr executive', 'human resource executive', 'hr operations'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Recruiter',
+        'key_skills': ['recruitment', 'sourcing', 'interviews', 'job portals', 'hrms'],
+        'patterns': ['recruiter', 'talent acquisition', 'technical recruiter'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Operations Manager',
+        'key_skills': ['operations', 'logistics', 'team management', 'supply chain', 'process improvement'],
+        'patterns': ['operations manager', 'ops manager', 'logistics manager'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Social Media Manager',
+        'key_skills': ['social media', 'instagram', 'facebook', 'content creation', 'analytics', 'campaigns'],
+        'patterns': ['social media manager', 'smm', 'social media marketing'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Email Marketing Specialist',
+        'key_skills': ['email marketing', 'mailchimp', 'campaigns', 'automation', 'newsletters'],
+        'patterns': ['email marketing', 'mailchimp specialist', 'email campaign'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Data Engineer',
+        'key_skills': ['data pipelines', 'etl', 'spark', 'hadoop', 'airflow', 'big data'],
+        'patterns': ['data engineer', 'big data engineer', 'etl engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'AI Researcher',
+        'key_skills': ['machine learning', 'deep learning', 'research', 'nlp', 'academic writing'],
+        'patterns': ['ai researcher', 'ml researcher', 'machine learning research'],
+        'weight': 1.0
+    },
+    {
+    'role': 'RPA Blue Prism Developer',
+    'key_skills': ['rpa', 'blue prism', 'process automation', 'bots', 'workflow automation', 'control room'],
+    'patterns': ['rpa blue prism', 'blue prism developer', 'rpa developer', 'automation developer'],
+    'weight': 1.0
+},
+{
+    'role': 'Online Bidder',
+    'key_skills': ['bidding', 'upwork', 'freelancer', 'client communication', 'proposal writing', 'lead generation'],
+    'patterns': ['online bidder', 'upwork bidding', 'freelancer bidder', 'bidding executive'],
+    'weight': 1.0
+},
+{
+    'role': 'Technical Business Analyst',
+    'key_skills': ['business analysis', 'technical specifications', 'requirement gathering', 'sql', 'data analysis', 'system design'],
+    'patterns': ['technical business analyst', 'it business analyst', 'technical ba', 'tech business analyst'],
+    'weight': 1.0
+},
+{
+    'role': 'HTML/CSS Developer Intern',
+    'key_skills': ['html', 'css', 'web development', 'responsive design', 'internship', 'bootstrap'],
+    'patterns': ['html css intern', 'html/css developer intern', 'web developer intern', 'frontend intern'],
+    'weight': 1.0
+},
+{
+    'role': 'IT Content Writer',
+    'key_skills': ['technical writing', 'blogs', 'whitepapers', 'it content', 'documentation', 'seo'],
+    'patterns': ['it content writer', 'technical content writer', 'technology writer', 'software content writer'],
+    'weight': 1.0
+},
+{
+    'role': 'Market Research Analyst',
+    'key_skills': ['market research', 'data analysis', 'survey', 'consumer behavior', 'statistics', 'competitive analysis'],
+    'patterns': ['market research analyst', 'market analyst', 'research executive', 'market researcher'],
+    'weight': 1.0
+},
+    {
+        'role': 'Penetration Tester',
+        'key_skills': ['penetration testing', 'ethical hacking', 'nmap', 'burpsuite', 'security audit'],
+        'patterns': ['penetration tester', 'ethical hacker', 'pentester'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Automation Test Engineer',
+        'key_skills': ['selenium', 'test automation', 'java', 'pytest', 'frameworks'],
+        'patterns': ['automation tester', 'test automation engineer', 'automation qa'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Video Editor',
+        'key_skills': ['video editing', 'premiere pro', 'final cut', 'after effects', 'motion graphics'],
+        'patterns': ['video editor', 'video editing specialist', 'motion editor'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Voice Process Executive',
+        'key_skills': ['voice support', 'bpo', 'communication', 'call center', 'customer service'],
+        'patterns': ['voice process', 'voice support', 'bpo voice', 'inbound call'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Non-Voice Process Executive',
+        'key_skills': ['typing', 'email handling', 'chat support', 'non-voice', 'customer support'],
+        'patterns': ['non-voice process', 'email support', 'chat support'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Instructional Designer',
+        'key_skills': ['instructional design', 'elearning', 'storyboarding', 'lms', 'training'],
+        'patterns': ['instructional designer', 'elearning designer', 'learning designer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Business Intelligence Analyst',
+        'key_skills': ['bi', 'power bi', 'tableau', 'data analysis', 'dashboards'],
+        'patterns': ['bi analyst', 'business intelligence analyst', 'bi developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'SAP Consultant',
+        'key_skills': ['sap', 'sap fico', 'sap mm', 'sap abap', 'erp', 'modules'],
+        'patterns': ['sap consultant', 'sap fico', 'sap mm', 'sap abap'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Data Entry Operator',
+        'key_skills': ['data entry', 'typing', 'excel', 'accuracy', 'documentation'],
+        'patterns': ['data entry operator', 'data entry', 'back office executive'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Finance Analyst',
+        'key_skills': ['financial analysis', 'budgeting', 'forecasting', 'excel', 'accounts'],
+        'patterns': ['finance analyst', 'financial analyst', 'account analyst'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Accounting Executive',
+        'key_skills': ['accounting', 'tally', 'gst', 'invoicing', 'accounts payable'],
+        'patterns': ['accounting executive', 'accountant', 'accounts executive'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Legal Associate',
+        'key_skills': ['legal research', 'contracts', 'compliance', 'litigation', 'law'],
+        'patterns': ['legal associate', 'legal executive', 'lawyer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Medical Coder',
+        'key_skills': ['icd', 'cpt', 'medical coding', 'healthcare', 'billing'],
+        'patterns': ['medical coder', 'medical coding', 'healthcare coding'],
+        'weight': 1.0
+    }, 
+    {
+    'role': 'Human Resource',
+    'key_skills': ['human resources', 'hr policies', 'employee relations', 'payroll', 'compliance', 'performance management'],
+    'patterns': ['human resource', 'hr manager', 'hr generalist', 'hr business partner', 'hrbp'],
+    'weight': 1.0
     }
             ]
         

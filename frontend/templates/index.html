@@ -6,6 +6,7 @@
     <title>SentientGeeks ATS Resume Matcher</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
     <div id="app">
@@ -13,6 +14,8 @@
             <div class="container">
                 <h1 class="logo">SentientGeeks ATS</h1>
                 <p class="tagline">AI-Powered Resume Matching System</p>
+                <!-- Main Navigation -->
+                <nav class="main-nav"></nav>
             </div>
         </header>
 
@@ -99,6 +102,34 @@
                         <div id="results-content"></div>
                     </div>
                 </section>
+
+                <!-- Step 6: History & Analytics -->
+                <section id="history-section" class="section">
+                    <div class="container">
+                        <div class="section-header">
+                            <h2>History & Analytics</h2>
+                            <p>View, manage, and export your ATS matching history</p>
+                        </div>
+                        
+                        <!-- Loading indicator -->
+                        <div id="history-loading" class="loading-overlay" style="display: none;">
+                            <div class="loading-spinner">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Loading history...</p>
+                            </div>
+                        </div>
+
+                        <!-- Sessions list -->
+                        <div id="sessions-list" class="history-content">
+                            <!-- Sessions will be loaded here -->
+                        </div>
+
+                        <!-- Session details -->
+                        <div id="session-details" class="history-content" style="display: none;">
+                            <!-- Session details will be loaded here -->
+                        </div>
+                    </div>
+                </section>
             </div>
         </main>
 
@@ -116,6 +147,37 @@
     <script src="/static/js/jd-processor.js"></script>
     <script src="/static/js/resume-uploader.js"></script>
     <script src="/static/js/matcher.js?v=3.0"></script>
+
+    <!-- History Navigation Script -->
+    <script>
+    // Add history navigation to main navigation
+    function showHistorySection() {
+        // Hide all sections
+        document.querySelectorAll('.section').forEach(section => {
+            section.classList.remove('active');
+        });
+        
+        // Show history section
+        document.getElementById('history-section').classList.add('active');
+        
+        // Load history if not already loaded
+        if (typeof historyManager !== 'undefined' && !historyManager.isLoading) {
+            historyManager.loadAllSessions();
+        }
+    }
+
+    // Update navigation to include history
+    document.addEventListener('DOMContentLoaded', function() {
+        const navigation = document.querySelector('.main-nav');
+        if (navigation) {
+            const historyBtn = document.createElement('button');
+            historyBtn.className = 'nav-btn';
+            historyBtn.innerHTML = '<i class="fas fa-history"></i> History';
+            historyBtn.onclick = showHistorySection;
+            navigation.appendChild(historyBtn);
+        }
+    });
+    </script>
 
     <!-- EMERGENCY FIX FOR VIEW DETAILS MODAL -->
     <script>

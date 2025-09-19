@@ -24,3 +24,5 @@ ats_matcher.db
 
 # Byte-compiled / cache
 *.pyc
+
+uploads/
