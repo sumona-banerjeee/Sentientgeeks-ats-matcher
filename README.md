@@ -141,5 +141,24 @@ psycopg2-binary>=2.9.5
 asyncpg>=0.28.0
 ```
 
+## Setup Instructions
+```
+python -m venv venv
+.\venv\Scripts\activate
+pip install -r requirements.txt
+**Run the Application:** python run.py
+```
+
+## Set Up Environment Variables
+```
+DATABASE_URL=sqlite:///./ats_matcher.db
+PERPLEXITY_API_KEY=your_api_key_here
+SECRET_KEY=your_secret_key_here
+DEBUG=True
+UPLOAD_DIR=./data/uploads
+MAX_FILE_SIZE=10485760
+ALLOWED_EXTENSIONS=pdf,doc,docx
+```
+
 
 
