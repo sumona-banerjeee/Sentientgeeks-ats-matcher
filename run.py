@@ -1,6 +1,10 @@
 import uvicorn
 import os
 import sys
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -12,7 +16,16 @@ def main():
     os.makedirs("./data/processed", exist_ok=True)
     
     print("Starting SentientGeeks ATS Resume Matcher...")
-    print("Database: SQLite (Development Mode)")
+    
+    # Check database type from environment
+    database_url = os.getenv("DATABASE_URL", "")
+    if "postgresql" in database_url.lower():
+        print("Database: PostgreSQL (Production Ready)")
+    elif "sqlite" in database_url.lower():
+        print("Database: SQLite (Development Mode)")
+    else:
+        print("Database: Unknown")
+    
     print("Server will be available at: http://localhost:8000")
     
     # Run the application

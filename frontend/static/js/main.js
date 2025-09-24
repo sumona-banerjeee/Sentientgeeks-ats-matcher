@@ -49,17 +49,22 @@ class Utils {
     static showLoading(message = 'Processing...') {
         const overlay = document.getElementById('loading-overlay');
         const messageEl = document.getElementById('loading-message');
-        messageEl.textContent = message;
-        overlay.classList.add('active');
+        if (messageEl) messageEl.textContent = message;
+        if (overlay) overlay.classList.add('active');
     }
     
     static hideLoading() {
         const overlay = document.getElementById('loading-overlay');
-        overlay.classList.remove('active');
+        if (overlay) overlay.classList.remove('active');
     }
     
     static showToast(message, type = 'info', duration = 5000) {
         const container = document.getElementById('toast-container');
+        if (!container) {
+            console.log(`Toast: [${type.toUpperCase()}] ${message}`);
+            return;
+        }
+        
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.textContent = message;
@@ -67,7 +72,9 @@ class Utils {
         container.appendChild(toast);
         
         setTimeout(() => {
-            toast.remove();
+            if (toast && toast.parentNode) {
+                toast.remove();
+            }
         }, duration);
     }
     
@@ -85,11 +92,17 @@ class Utils {
         }
         
         try {
+            console.log(`Making request to: ${url}`);
             const response = await fetch(url, mergedOptions);
             
             if (!response.ok) {
-                const errorData = await response.text();
-                throw new Error(`HTTP ${response.status}: ${errorData}`);
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch {
+                    errorData = await response.text();
+                }
+                throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
             }
             
             return await response.json();
@@ -146,29 +159,57 @@ function initializeApp() {
 
 function initializeEventListeners() {
     // JD file input
-    document.getElementById('jd-file').addEventListener('change', handleJDFileSelect);
+    const jdFileInput = document.getElementById('jd-file');
+    if (jdFileInput) {
+        jdFileInput.addEventListener('change', handleJDFileSelect);
+    }
     
     // JD text input
-    document.getElementById('jd-text').addEventListener('input', handleJDTextInput);
+    const jdTextInput = document.getElementById('jd-text');
+    if (jdTextInput) {
+        jdTextInput.addEventListener('input', handleJDTextInput);
+    }
     
     // Process JD button
-    document.getElementById('process-jd-btn').addEventListener('click', processJobDescription);
+    const processBtn = document.getElementById('process-jd-btn');
+    if (processBtn) {
+        processBtn.addEventListener('click', processJobDescription);
+    }
     
     // Structure approval buttons
-    document.getElementById('approve-structure-btn').addEventListener('click', approveStructure);
-    document.getElementById('request-changes-btn').addEventListener('click', requestStructureChanges);
+    const approveBtn = document.getElementById('approve-structure-btn');
+    if (approveBtn) {
+        approveBtn.addEventListener('click', approveStructure);
+    }
+    
+    const requestChangesBtn = document.getElementById('request-changes-btn');
+    if (requestChangesBtn) {
+        requestChangesBtn.addEventListener('click', requestStructureChanges);
+    }
     
     // Skills weightage button
-    document.getElementById('set-weightage-btn').addEventListener('click', setSkillsWeightage);
+    const weightageBtn = document.getElementById('set-weightage-btn');
+    if (weightageBtn) {
+        weightageBtn.addEventListener('click', setSkillsWeightage);
+    }
     
     // Resume files input
-    document.getElementById('resume-files').addEventListener('change', handleResumeFilesSelect);
+    const resumeFilesInput = document.getElementById('resume-files');
+    if (resumeFilesInput) {
+        resumeFilesInput.addEventListener('change', handleResumeFilesSelect);
+    }
     
     // Upload resumes button
-    document.getElementById('upload-resumes-btn').addEventListener('click', uploadResumes);
+    const uploadResumesBtn = document.getElementById('upload-resumes-btn');
+    if (uploadResumesBtn) {
+        uploadResumesBtn.addEventListener('click', uploadResumes);
+    }
     
     // Start matching button
-    document.getElementById('start-matching-btn').addEventListener('click', startMatching);
+    const startMatchingBtn = document.getElementById('start-matching-btn');
+    if (startMatchingBtn) {
+        startMatchingBtn.addEventListener('click', startMatching);
+    }
 }
 
 function handleJDFileSelect(event) {
@@ -176,7 +217,8 @@ function handleJDFileSelect(event) {
     if (file) {
         try {
             Utils.validateFile(file);
-            document.getElementById('jd-text').value = ''; // Clear text input
+            const textInput = document.getElementById('jd-text');
+            if (textInput) textInput.value = ''; // Clear text input
             updateProcessJDButton();
             Utils.showToast('JD file selected successfully', 'success');
         } catch (error) {
@@ -188,7 +230,8 @@ function handleJDFileSelect(event) {
 
 function handleJDTextInput(event) {
     if (event.target.value.trim()) {
-        document.getElementById('jd-file').value = ''; // Clear file input
+        const fileInput = document.getElementById('jd-file');
+        if (fileInput) fileInput.value = ''; // Clear file input
     }
     updateProcessJDButton();
 }
@@ -198,15 +241,24 @@ function updateProcessJDButton() {
     const textInput = document.getElementById('jd-text');
     const processBtn = document.getElementById('process-jd-btn');
     
+    if (!fileInput || !textInput || !processBtn) return;
+    
     const hasFile = fileInput.files.length > 0;
     const hasText = textInput.value.trim().length > 0;
     
     processBtn.disabled = !(hasFile || hasText);
 }
 
+// FIXED: Proper async function for processing job description
+// FIXED: Proper async function for processing job description
 async function processJobDescription() {
     const fileInput = document.getElementById('jd-file');
     const textInput = document.getElementById('jd-text');
+    
+    if (!fileInput || !textInput) {
+        Utils.showToast('Required form elements not found', 'error');
+        return;
+    }
     
     try {
         Utils.showLoading('Processing job description...');
@@ -215,22 +267,40 @@ async function processJobDescription() {
         
         if (fileInput.files.length > 0) {
             formData.append('file', fileInput.files[0]);
+            console.log('Uploading file:', fileInput.files[0].name);
         } else if (textInput.value.trim()) {
             formData.append('text', textInput.value.trim());
+            console.log('Uploading text, length:', textInput.value.trim().length);
         } else {
             throw new Error('Please provide either a JD file or text');
         }
         
-        const response = await fetch('/api/jd/upload', {
+        // FIXED: Use proper server URL with protocol and port
+        const serverUrl = 'http://localhost:8000'; // or your actual server URL
+        const response = await fetch(`${serverUrl}/api/jd/upload`, {
             method: 'POST',
-            body: formData
+            body: formData,
+            // Remove Content-Type header - let browser set it for FormData
+            headers: {
+                // Don't set Content-Type for FormData - browser will set multipart/form-data
+            }
         });
         
+        console.log('Response status:', response.status);
+        
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+            let errorText;
+            try {
+                const errorData = await response.json();
+                errorText = errorData.detail || errorData.message || JSON.stringify(errorData);
+            } catch {
+                errorText = await response.text() || `HTTP ${response.status}`;
+            }
+            throw new Error(`Server Error ${response.status}: ${errorText}`);
         }
         
         const result = await response.json();
+        console.log('JD processing result:', result);
         
         // Store session data
         appState.setSessionId(result.session_id);
@@ -246,14 +316,27 @@ async function processJobDescription() {
         
     } catch (error) {
         console.error('Error processing JD:', error);
-        Utils.showToast(error.message, 'error');
+        
+        // Better error handling
+        if (error.message.includes('Failed to fetch')) {
+            Utils.showToast('Cannot connect to server. Is the backend running on port 8000?', 'error');
+        } else if (error.message.includes('404')) {
+            Utils.showToast('Upload endpoint not found. Check your backend API routes.', 'error');
+        } else {
+            Utils.showToast(`Error: ${error.message}`, 'error');
+        }
     } finally {
         Utils.hideLoading();
     }
 }
 
+
 function displayStructuredJD(structuredData) {
     const container = document.getElementById('structured-jd-display');
+    if (!container) {
+        console.log('Structured JD display container not found');
+        return;
+    }
     
     let html = '<div class="structured-jd">';
     html += '<h3>Structured Job Description</h3>';
@@ -319,7 +402,125 @@ function displayStructuredJD(structuredData) {
     container.innerHTML = html;
 }
 
+// PLACEHOLDER FUNCTIONS - Add these if missing
+async function approveStructure() {
+    if (!appState.getSessionId()) {
+        Utils.showToast('No active session found', 'error');
+        return;
+    }
+    
+    try {
+        Utils.showLoading('Approving structure...');
+        
+        const response = await Utils.makeRequest(`/api/jd/approve-structure/${appState.getSessionId()}`, {
+            method: 'POST',
+            body: { approved: true }
+        });
+        
+        if (response.ready_for_skills_weightage) {
+            appState.nextStep();
+            Utils.showToast('Structure approved! Please set skills weightage.', 'success');
+        }
+        
+    } catch (error) {
+        Utils.showToast(`Error approving structure: ${error.message}`, 'error');
+    } finally {
+        Utils.hideLoading();
+    }
+}
 
+async function requestStructureChanges() {
+    const feedback = prompt('Please provide feedback for structure changes:');
+    if (!feedback) return;
+    
+    try {
+        Utils.showLoading('Processing feedback...');
+        
+        const response = await Utils.makeRequest(`/api/jd/approve-structure/${appState.getSessionId()}`, {
+            method: 'POST',
+            body: { approved: false, feedback: feedback }
+        });
+        
+        if (response.revised_structure) {
+            displayStructuredJD(response.revised_structure);
+            Utils.showToast('Structure updated based on feedback', 'success');
+        }
+        
+    } catch (error) {
+        Utils.showToast(`Error processing feedback: ${error.message}`, 'error');
+    } finally {
+        Utils.hideLoading();
+    }
+}
+
+async function setSkillsWeightage() {
+    // This would typically involve collecting skill weights from a form
+    // For now, setting default weights
+    const defaultWeights = {
+        'python': 30,
+        'javascript': 25,
+        'react': 20,
+        'sql': 15,
+        'git': 10
+    };
+    
+    try {
+        Utils.showLoading('Setting skills weightage...');
+        
+        await Utils.makeRequest(`/api/jd/set-skills-weightage/${appState.getSessionId()}`, {
+            method: 'POST',
+            body: defaultWeights
+        });
+        
+        appState.nextStep();
+        Utils.showToast('Skills weightage set successfully!', 'success');
+        
+    } catch (error) {
+        Utils.showToast(`Error setting skills weightage: ${error.message}`, 'error');
+    } finally {
+        Utils.hideLoading();
+    }
+}
+
+function handleResumeFilesSelect(event) {
+    const files = event.target.files;
+    Utils.showToast(`${files.length} resume(s) selected`, 'success');
+}
+
+async function uploadResumes() {
+    const fileInput = document.getElementById('resume-files');
+    if (!fileInput || !fileInput.files.length) {
+        Utils.showToast('Please select resume files first', 'warning');
+        return;
+    }
+    
+    try {
+        Utils.showLoading('Uploading resumes...');
+        
+        const formData = new FormData();
+        for (let i = 0; i < fileInput.files.length; i++) {
+            formData.append('files', fileInput.files[i]);
+        }
+        
+        const response = await fetch(`/api/resumes/upload/${appState.getSessionId()}`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+        
+        const result = await response.json();
+        appState.nextStep();
+        Utils.showToast(`${result.successfully_processed} resumes uploaded successfully!`, 'success');
+        
+    } catch (error) {
+        Utils.showToast(`Error uploading resumes: ${error.message}`, 'error');
+    } finally {
+        Utils.hideLoading();
+    }
+}
 
 // Add navigation helper function
 function goToResumeUpload() {
@@ -362,4 +563,10 @@ async function startMatching() {
     } finally {
         Utils.hideLoading();
     }
+}
+
+async function displayMatchingResults() {
+    // Placeholder for displaying matching results
+    console.log('Displaying matching results:', appState.matchingResults);
+    appState.nextStep();
 }
