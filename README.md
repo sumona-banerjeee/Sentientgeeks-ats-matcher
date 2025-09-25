@@ -6,61 +6,66 @@ Built with **FastAPI (Backend)** and **Vanilla JavaScript (Frontend)**.
 
 ---
 
-## Features
+## 🚀 Features
 
 - **Job Description Processing**  
-  Upload JD as text or PDF. Automatically extracts and structures information into title, skills, qualifications, and responsibilities.
+  Upload JD as text or PDF. Automatically extracts and structures information into:
+  - Job Title
+  - Required Skills
+  - Qualifications
+  - Responsibilities
 
 - **JD Review & Approval**  
-  Review and approve structured job descriptions before continuing.
+  HR can review and approve structured job descriptions before continuing.
 
 - **Skills Weightage System**  
-  Assign priority (scale 1–100) to required skills for better candidate scoring.
+  Assign priority (scale **1–100**) to required skills for more accurate candidate scoring.
 
 - **Bulk Resume Upload**  
-  Upload up to **50 PDF resumes** at once with validation checks.
+  Upload up to **50 PDF resumes** simultaneously with proper validation.
 
 - **AI Resume Parsing**  
   Automatically extracts:
-  - Candidate name  
+  - Candidate Name  
   - Skills  
-  - Total experience
+  - Total Experience
 
 - **ATS Matching Engine**  
-  Compares resumes to the JD, producing:
-  - Candidate rankings  
-  - Overall match score  
-  - Skill match score
+  Matches resumes to the JD with outputs like:
+  - Candidate Rankings  
+  - Overall Match Score  
+  - Skill Match Score
 
 - **Candidate Insights Modal**  
-  View detailed information for each candidate, including:
-  - Skill match analysis  
+  View detailed profile for each candidate, including:
+  - Skill Match Analysis  
   - Education  
-  - Certifications
-  - Direct Link for visiting sites like LinkedIn, Github
-  - Directly get the contact information for easy access for the HR team.
+  - Certifications  
+  - Direct links to LinkedIn, GitHub  
+  - Contact Information for HR teams
 
 - **Export Results**  
-  Download ranked candidates as **CSV** or **JSON**.
+  Download ranked candidate data in **CSV** or **JSON** format.
 
-- **Data Migration**
-- Production-ready scalability
-- Added pgAdmin support for database management
-- Improved data persistence and concurrent user support
+- **Data Migration & Persistence**
+  - Supports production-ready scaling
+  - Integrated `pgAdmin` for PostgreSQL management
+  - Improved data persistence & concurrent user support
 
-- **AI-powered interview question generation**
-- Uses API related to the skills.
-- Generates **10 medium-to-hard level questions** based on JD skills
-- **Regenerate functionality** for different question sets
-- Export questions as text files for interview preparation
+- **AI-Powered Interview Question Generator**  
+  - Uses skill-based APIs
+  - Generates **10 medium-to-hard** level questions
+  - Includes **Regenerate** functionality
+  - Export questions as `.txt` files for interviews
 
 - **Performance Improvements**
-- Optimized API response times
-- Better error handling and user feedback
-- Enhanced session management
-- Improved file processing capabilities
-
+  - Optimized API response times  
+  - Better error handling & UI feedback  
+  - Enhanced session management  
+  - Faster file parsing
+  
 ---
+
 ## Latest Updates
 ### History Management System
 - Complete Match History Tracking: Automatically saves all matching sessions to database
