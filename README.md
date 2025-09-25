@@ -47,18 +47,18 @@ Built with **FastAPI (Backend)** and **Vanilla JavaScript (Frontend)**.
 
 ## 🆕 Latest Updates (v2.0)
 
-### 🗄️ Database Migration
+### Database Migration
 - **Migrated from SQLite to PostgreSQL** for production-ready scalability
 - Added pgAdmin support for database management
 - Improved data persistence and concurrent user support
 
-### 🎯 Interview Questions Generator
+### Interview Questions Generator
 - **AI-powered interview question generation** using API related to the skills.
 - Generates **10 medium-to-hard level questions** based on JD skills
 - **Regenerate functionality** for different question sets
 - Export questions as text files for interview preparation
 
-### 🚀 Performance Improvements
+### Performance Improvements
 - Optimized API response times
 - Better error handling and user feedback
 - Enhanced session management
