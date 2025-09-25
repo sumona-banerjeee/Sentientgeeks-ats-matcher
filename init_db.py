@@ -2,6 +2,8 @@ import os
 import sys
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
+from backend.app.models.history_models import MatchingHistory
+
 
 # Load environment variables
 load_dotenv()
@@ -31,7 +33,7 @@ def initialize_database():
         print("- jd_structuring_sessions") 
         print("- resumes")
         print("- matching_results")
-        
+        print("- matching_history") 
         print("\n🎉 Database initialization completed!")
         print("Your ATS Resume Matcher is ready to use with PostgreSQL!")
         

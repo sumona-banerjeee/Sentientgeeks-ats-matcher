@@ -4,6 +4,9 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 import os
+from backend.app.api import history_routes
+
+
 
 app = FastAPI(
     title="SentientGeeks ATS Resume Matcher",
@@ -82,9 +85,20 @@ try:
     except ImportError:
         print("⚠️ Interview routes not found - please create interview_routes.py")
     
+
+    # ✅ History routes (new)
+    try:
+        from backend.app.api import history_routes
+        app.include_router(history_routes.router)
+        print("✅ History routes loaded successfully!")
+    except ImportError:
+        print("⚠️ History routes not found - please create history_routes.py")
+
+        
     app.include_router(jd_routes.router)
     app.include_router(resume_routes.router)
     app.include_router(matching_routes.router)
+    app.include_router(history_routes.router)
     print("✅ API routes loaded successfully!")
     
 except Exception as e:

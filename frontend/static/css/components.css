@@ -772,10 +772,14 @@
 
 /* Button styles */
 #generate-questions-btn {
-    background: linear-gradient(135deg, #28a745, #20c997);
+    background: #667eea;
     border: none;
     color: white;
     font-weight: 500;
+}
+
+#generate-questions-btn:hover {
+    background: #5a67d8;
 }
 
 #generate-questions-btn:hover {
@@ -801,4 +805,32 @@
     .interview-actions .btn {
         width: 100%;
     }
+}
+
+
+/* History Modal Styles */
+#history-modal .modal-content {
+    max-width: 1000px;
+    width: 95%;
+}
+
+#history-modal .results-table {
+    width: 100%;
+    font-size: 0.9rem;
+}
+
+#history-modal .score-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #f39c12, #e67e22);
+    border: none;
+    color: white;
+}
+
+.btn-warning:hover {
+    background: linear-gradient(135deg, #e67e22, #d35400);
 }
