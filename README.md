@@ -76,7 +76,7 @@ Built with **FastAPI (Backend)** and **Vanilla JavaScript (Frontend)**.
 ### Backend
 
 - **FastAPI** – API framework  
-- **SQLite** – Default development DB (easily swappable)  
+- **PostgreSQL** – Database for managing sessions
 - **PDF Processing:** PyMuPDF  
 - **NLP:** spaCy  
 - **LLM Integration:** Perplexity Pro API
