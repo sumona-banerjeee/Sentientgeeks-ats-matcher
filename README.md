@@ -173,7 +173,7 @@ pip install -r requirements.txt
 
 ## Set Up Environment Variables
 ```
-DATABASE_URL=sqlite:///./ats_matcher.db
+DATABASE_URL=url
 PERPLEXITY_API_KEY=your_api_key_here
 SECRET_KEY=your_secret_key_here
 DEBUG=True
