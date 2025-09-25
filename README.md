@@ -45,6 +45,35 @@ Built with **FastAPI (Backend)** and **Vanilla JavaScript (Frontend)**.
 
 ---
 
+### Database Migration
+- **Migrated from SQLite to PostgreSQL** for production-ready scalability
+- Added pgAdmin support for database management
+- Improved data persistence and concurrent user support
+
+### Interview Questions Generator
+- **AI-powered interview question generation** using API related to the skills.
+- Generates **10 medium-to-hard level questions** based on JD skills
+- **Regenerate functionality** for different question sets
+- Export questions as text files for interview preparation
+
+### Performance Improvements
+- Optimized API response times
+- Better error handling and user feedback
+- Enhanced session management
+- Improved file processing capabilities
+
+---
+## Latest Updates
+### History Management System
+- Complete Match History Tracking: Automatically saves all matching sessions to database
+- Interactive History Modal: View all past matching sessions with job details, candidate counts, and top scores
+- Historical Session Recovery: Click any history record to view complete detailed results
+- Session Management: Browse, view, and manage previous ATS matching sessions
+- Persistent Storage: All history stored in PostgreSQL with full data integrity
+
+
+---
+
 ## Tech Stack
 
 ### Frontend
@@ -54,7 +83,7 @@ Built with **FastAPI (Backend)** and **Vanilla JavaScript (Frontend)**.
 ### Backend
 
 - **FastAPI** – API framework  
-- **SQLite** – Default development DB (easily swappable)  
+- **PostgreSQL** – Database for managing sessions
 - **PDF Processing:** PyMuPDF  
 - **NLP:** spaCy  
 - **LLM Integration:** Perplexity Pro API
@@ -151,7 +180,7 @@ pip install -r requirements.txt
 
 ## Set Up Environment Variables
 ```
-DATABASE_URL=sqlite:///./ats_matcher.db
+DATABASE_URL=url
 PERPLEXITY_API_KEY=your_api_key_here
 SECRET_KEY=your_secret_key_here
 DEBUG=True
