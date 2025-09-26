@@ -891,16 +891,21 @@ async function viewHistoryDetails(sessionId) {
         const response = await Utils.makeRequest(`api/history/details/${sessionId}`);
         
         if (response.status === 'success') {
+            // Store current session info for proper back navigation
+            const currentSessionId = appState.getSessionId();
+            
             // Close history modal first
             closeHistoryModal();
             
-            // Display detailed results (reuse existing result display)
+            // Display detailed results with proper back navigation
             const container = document.getElementById('results-content');
-            displayDetailedHistory(response.history_info, response.detailed_results, container);
+            displayHistoryResultsView(response.history_info, response.detailed_results, container, currentSessionId);
             
             // Switch to results section
             appState.currentStep = 5;
             appState.updateUI();
+            
+            Utils.showToast("Historical session loaded successfully!", "success");
         }
         
     } catch (error) {
@@ -910,6 +915,7 @@ async function viewHistoryDetails(sessionId) {
         Utils.hideLoading();
     }
 }
+
 
 function displayDetailedHistory(historyInfo, detailedResults, container) {
     let html = `
@@ -975,6 +981,120 @@ function closeHistoryModal() {
     }
 }
 
+
+
+function displayHistoryResultsView(historyInfo, detailedResults, container, currentSessionId) {
+    let html = `
+        <div class="results-summary">
+            <h3><i class="fas fa-history"></i> Historical Match Results</h3>
+            <div class="history-info" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <div class="history-details">
+                    <div style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 15px;">
+                        <div><strong>Job:</strong> ${historyInfo.job_title}</div>
+                        <div><strong>Company:</strong> ${historyInfo.company_name}</div>
+                        <div><strong>Date:</strong> ${new Date(historyInfo.completed_at).toLocaleString()}</div>
+                        <div><strong>Total Candidates:</strong> ${historyInfo.total_resumes}</div>
+                    </div>
+                    <div><strong>Session ID:</strong> <code>${historyInfo.session_id}</code></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="results-table-container">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Candidate Name</th>
+                        <th>Filename</th>
+                        <th>Overall Score</th>
+                        <th>Skill Match</th>
+                        <th>Experience</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    detailedResults.forEach((result, index) => {
+        // Fix ranking - use actual rank or index + 1
+        const rank = result.rank_position || result.rank || (index + 1);
+        
+        // Format scores properly
+        const overallScore = result.overall_score || 0;
+        const skillScore = result.skill_match_score || 0;
+        const expScore = result.experience_score || 0;
+        
+        // Format with proper percentage
+        const formatScore = (score) => {
+            if (score === null || score === undefined || isNaN(score)) {
+                return { text: 'N/A', class: 'poor' };
+            }
+            const numScore = parseFloat(score);
+            const text = numScore.toFixed(1) + '%';
+            let className = 'poor';
+            if (numScore >= 80) className = 'excellent';
+            else if (numScore >= 60) className = 'good';
+            else if (numScore >= 40) className = 'average';
+            
+            return { text, class: className };
+        };
+        
+        const overallFormatted = formatScore(overallScore);
+        const skillFormatted = formatScore(skillScore);
+        const expFormatted = formatScore(expScore);
+        
+        // Status badge
+        let statusClass = 'badge-danger';
+        let statusText = 'Weak Match';
+        if (overallScore >= 70) {
+            statusClass = 'badge-success';
+            statusText = 'Strong Match';
+        } else if (overallScore >= 50) {
+            statusClass = 'badge-warning';
+            statusText = 'Good Match';
+        }
+        
+        html += `
+            <tr class="result-row">
+                <td><strong>${rank}</strong></td>
+                <td>${result.candidate_name || 'Unknown'}</td>
+                <td>${result.filename}</td>
+                <td><span class="score-badge ${overallFormatted.class}">${overallFormatted.text}</span></td>
+                <td><span class="score-badge ${skillFormatted.class}">${skillFormatted.text}</span></td>
+                <td><span class="score-badge ${expFormatted.class}">${expFormatted.text}</span></td>
+                <td><span class="badge ${statusClass}">${statusText}</span></td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="export-buttons" style="margin-top: 20px; text-align: center;">
+            <button class="btn btn-warning" onclick="backToCurrentResults('${currentSessionId}')" style="margin-right: 10px;">
+                <i class="fas fa-arrow-left"></i> Back to Current Results
+            </button>
+            <button class="btn btn-secondary" onclick="showHistory()" style="margin-right: 10px;">
+                <i class="fas fa-history"></i> View All History
+            </button>
+            <button class="btn btn-info" onclick="exportHistoryResultsAsCSV('${historyInfo.session_id}')" style="margin-right: 10px;">
+                <i class="fas fa-download"></i> Export as CSV
+            </button>
+            <button class="btn btn-primary" onclick="exportHistoryResultsAsJSON('${historyInfo.session_id}')">
+                <i class="fas fa-download"></i> Export as JSON
+            </button>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+
+
+
 // Auto-save to history when matching completes
 async function saveMatchingToHistory(sessionId) {
     try {
@@ -1005,4 +1125,200 @@ function getScoreClass(score) {
     if (score >= 60) return 'good'; 
     if (score >= 40) return 'average';
     return 'poor';
+}
+
+
+
+async function backToCurrentResults(currentSessionId) {
+    if (!currentSessionId) {
+        Utils.showToast("No current session found. Please start a new matching process.", "info");
+        // Reset to first step
+        appState.currentStep = 1;
+        appState.updateUI();
+        return;
+    }
+    
+    try {
+        Utils.showLoading("Loading current results...");
+        
+        // Load current session results
+        const response = await Utils.makeRequest(`api/matching/results/${currentSessionId}`);
+        
+        if (response.results && response.results.length > 0) {
+            // Display current results
+            const container = document.getElementById('results-content');
+            displayCurrentMatchingResults(response.results, currentSessionId, container);
+            
+            // Switch to results section
+            appState.currentStep = 5;
+            appState.updateUI();
+            
+            Utils.showToast("Returned to current matching results!", "success");
+        } else {
+            Utils.showToast("No current results found. Please start a new matching process.", "info");
+            appState.currentStep = 1;
+            appState.updateUI();
+        }
+        
+    } catch (error) {
+        console.error("Error loading current results:", error);
+        Utils.showToast("Error loading current results. Starting fresh.", "warning");
+        appState.currentStep = 1;
+        appState.updateUI();
+    } finally {
+        Utils.hideLoading();
+    }
+}
+
+
+
+function displayCurrentMatchingResults(results, sessionId, container) {
+    let html = `
+        <div class="results-summary">
+            <h3>Current ATS Matching Results</h3>
+            <p><strong>Total Candidates Processed:</strong> ${results.length}</p>
+            <p><strong>Session ID:</strong> <code>${sessionId}</code></p>
+        </div>
+        
+        <div class="results-table-container">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Candidate Name</th>
+                        <th>Filename</th>
+                        <th>Overall Score</th>
+                        <th>Skill Match</th>
+                        <th>Experience</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    results.forEach((result) => {
+        const overallScore = Utils.formatScore(result.overall_score);
+        const skillScore = Utils.formatScore(result.skill_match_score);
+        const expScore = Utils.formatScore(result.experience_score);
+        
+        html += `
+            <tr class="result-row" data-resume-id="${result.resume_id}">
+                <td><strong>${result.rank}</strong></td>
+                <td>${result.candidate_name || 'Unknown'}</td>
+                <td>${result.filename}</td>
+                <td><span class="score-badge ${overallScore.class}">${overallScore.text}</span></td>
+                <td><span class="score-badge ${skillScore.class}">${skillScore.text}</span></td>
+                <td><span class="score-badge ${expScore.class}">${expScore.text}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-primary" 
+                            data-resume-id="${result.resume_id}" 
+                            data-session-id="${sessionId}"
+                            onclick="showCandidateDetails('${sessionId}', '${result.resume_id}')">
+                        View Details
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Current session export buttons -->
+        <div class="export-buttons" style="margin-top: 20px; text-align: center;">
+            <button id="generate-questions-btn" class="btn btn-success" onclick="generateInterviewQuestions(false)" style="margin-right: 10px;">
+                <i class="fas fa-question-circle"></i> Interview Questions
+            </button>
+            <button class="btn btn-secondary" onclick="exportResultsAsCSV()" style="margin-right: 10px;">
+                <i class="fas fa-download"></i> Export as CSV
+            </button>
+            <button class="btn btn-info" onclick="exportResultsAsJSON()" style="margin-right: 10px;">
+                <i class="fas fa-download"></i> Export as JSON
+            </button>
+            <button class="btn btn-warning" onclick="showHistory()">
+                <i class="fas fa-history"></i> History
+            </button>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+
+
+async function exportHistoryResultsAsCSV(sessionId) {
+    try {
+        Utils.showLoading("Exporting historical results as CSV...");
+        
+        const response = await Utils.makeRequest(`api/history/details/${sessionId}`);
+        const results = response.detailed_results;
+        
+        const headers = ['Rank', 'Candidate Name', 'Filename', 'Overall Score', 'Skill Match Score', 'Experience Score'];
+        const rows = results.map(result => [
+            result.rank_position || result.rank || 'N/A',
+            result.candidate_name || 'Unknown',
+            result.filename,
+            result.overall_score || 0,
+            result.skill_match_score || 0,
+            result.experience_score || 0
+        ]);
+        
+        const csvContent = [headers, ...rows.map(row => 
+            row.map(field => String(field).replace(/"/g, '""')).join(',')
+        )].join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ats-history-results-${sessionId}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        Utils.showToast(`Historical results exported as CSV!`, "success");
+        
+    } catch (error) {
+        console.error("Error exporting historical results:", error);
+        Utils.showToast("Error exporting historical results: " + error.message, "error");
+    } finally {
+        Utils.hideLoading();
+    }
+}
+
+async function exportHistoryResultsAsJSON(sessionId) {
+    try {
+        Utils.showLoading("Exporting historical results as JSON...");
+        
+        const response = await Utils.makeRequest(`api/history/details/${sessionId}`);
+        
+        const exportData = {
+            session_info: response.history_info,
+            detailed_results: response.detailed_results,
+            exported_at: new Date().toISOString()
+        };
+        
+        const jsonContent = JSON.stringify(exportData, null, 2);
+        
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ats-history-results-${sessionId}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        Utils.showToast(`Historical results exported as JSON!`, "success");
+        
+    } catch (error) {
+        console.error("Error exporting historical results:", error);
+        Utils.showToast("Error exporting historical results: " + error.message, "error");
+    } finally {
+        Utils.hideLoading();
+    }
 }
