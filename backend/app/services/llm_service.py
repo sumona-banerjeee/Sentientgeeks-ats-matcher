@@ -15,6 +15,13 @@ class LLMService:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
+
+        self.timeout_config = {
+            "connection_timeout": int(os.getenv("PERPLEXITY_CONNECTION_TIMEOUT", "10")),  # Connection timeout
+            "read_timeout": int(os.getenv("PERPLEXITY_READ_TIMEOUT", "30")),             # Read timeout  
+            "total_timeout": int(os.getenv("PERPLEXITY_TOTAL_TIMEOUT", "60")),           # Total timeout
+        }
+
         # Use real API if we have a valid key
         self.use_mock = not self.api_key or self.api_key in ["your_perplexity_api_key_here", "", "None"]
         
