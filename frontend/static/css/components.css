@@ -834,3 +834,248 @@
 .btn-warning:hover {
     background: linear-gradient(135deg, #e67e22, #d35400);
 }
+
+
+
+/* History Sidebar Styles */
+.jd-with-history-layout {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 20px;
+    align-items: start;
+}
+
+.jd-upload-area-wrapper {
+    min-width: 0;
+}
+
+.history-sidebar {
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 140px);
+}
+
+.history-sidebar .card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.history-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-icon {
+    padding: 6px 10px;
+    font-size: 16px;
+    border: none;
+    background: #f8f9fa;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.btn-icon:hover {
+    background: #e9ecef;
+    transform: rotate(180deg);
+}
+
+.history-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: calc(100vh - 240px);
+    padding-right: 8px;
+}
+
+/* Custom scrollbar */
+.history-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.history-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.history-list::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.history-list::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.history-item {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.history-item:hover {
+    background: #e9ecef;
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+    transform: translateX(-3px);
+}
+
+.history-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.history-job-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: 8px;
+}
+
+.history-item-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.history-company,
+.history-resumes {
+    font-size: 12px;
+    color: #666;
+}
+
+.history-item-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.history-date {
+    font-size: 11px;
+    color: #999;
+}
+
+.score-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.score-excellent {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.score-good {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.score-average {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.score-poor {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.no-history {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+}
+
+.no-history p {
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.no-history small {
+    font-size: 12px;
+    color: #bbb;
+}
+
+.error-message {
+    text-align: center;
+    padding: 30px 20px;
+}
+
+.error-message p {
+    color: #dc3545;
+    margin-bottom: 15px;
+}
+
+.loading-text {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+    font-style: italic;
+}
+
+.history-view-all {
+    text-align: center;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .jd-with-history-layout {
+        grid-template-columns: 1fr 350px;
+    }
+}
+
+@media (max-width: 992px) {
+    .jd-with-history-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .history-sidebar {
+        position: relative;
+        top: 0;
+        max-height: 500px;
+    }
+    
+    .history-list {
+        max-height: 400px;
+    }
+}
+
+@media (max-width: 768px) {
+    .history-sidebar {
+        max-height: 400px;
+    }
+    
+    .history-list {
+        max-height: 300px;
+    }
+}

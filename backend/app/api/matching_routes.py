@@ -60,7 +60,7 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
             print(f"Resume data keys: {list(resume_data.keys()) if resume_data else 'None'}")
             print(f"Skills weightage: {len(skills_weightage)} skills" if skills_weightage else "📊 No skills weightage")
             
-            # ✅ MAIN FIX: Calculate ATS score and individual scores
+            # Calculate ATS score
             ats_score = matching_engine.calculate_ats_score(
                 jd_data,
                 resume_data,
@@ -69,25 +69,24 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
             
             overall_score = ats_score.get('overall_score', 0)
             
-            # ✅ FIX: Calculate individual scores separately for better accuracy
             # Parse JD experience requirement
             jd_exp_required = 0
             if jd_data.get('experience_required'):
                 try:
-                    jd_exp_required = matching_engine.parse_experience_years(str(jd_data['experience_required']))
+                    jd_exp_required = matching_engine._parse_experience_years(str(jd_data['experience_required']))
                 except:
                     jd_exp_required = 0
             
             # Calculate individual skill and experience scores
             try:
-                # Get job priorities for detailed scoring
-                job_priorities = matching_engine.extract_job_priorities_from_jd(jd_data)
+                # FIX: Use the correct method name
+                job_priorities = matching_engine._extract_job_priorities(jd_data, None)
                 
                 # Calculate individual scores using matching engine methods
-                skills_score = matching_engine.calculate_complete_skills_score(
+                skills_score = matching_engine._calculate_complete_skills_score(
                     resume_data, job_priorities, skills_weightage
                 )
-                experience_score = matching_engine.calculate_enhanced_experience_score(
+                experience_score = matching_engine._calculate_enhanced_experience_score(
                     resume_data, job_priorities, jd_exp_required
                 )
                 
@@ -95,15 +94,20 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
                 
             except Exception as score_error:
                 print(f"Error calculating individual scores: {score_error}")
-                # Fallback: Calculate reasonable estimates from overall score
-                skills_score = min(100, max(0, overall_score + (len(resume_data.get('skills', [])) * 2)))
-                experience_score = min(100, max(0, overall_score - 10 + (resume_data.get('total_experience', 0) * 5)))
+                # Fallback: Use scores from ats_score if available
+                skills_score = ats_score.get('skill_match_score', 0)
+                experience_score = ats_score.get('experience_score', 0)
                 
-                print(f"Using estimated scores - Skills: {skills_score}%, Experience: {experience_score}%")
+                # If still zero, calculate reasonable estimates
+                if skills_score == 0 and experience_score == 0:
+                    skills_score = min(100, max(0, overall_score + (len(resume_data.get('skills', [])) * 2)))
+                    experience_score = min(100, max(0, overall_score - 10 + (resume_data.get('total_experience', 0) * 5)))
+                
+                print(f"Using fallback scores - Skills: {skills_score}%, Experience: {experience_score}%")
             
             print(f"Final scores - Overall: {overall_score}%, Skills: {skills_score}%, Experience: {experience_score}%")
             
-            # ✅ Save result with proper individual scores
+            # Save result with proper individual scores
             matching_result = MatchingResult(
                 session_id=session_id,
                 jd_id=jd.id,
@@ -204,7 +208,7 @@ async def get_matching_results(session_id: str, db: Session = Depends(get_db)):
             detail=f"No matching results found. Please run the matching process first for the {len(resumes)} uploaded resumes."
         )
     
-    # ✅ Build detailed results with PROPER SCORING
+    # Build detailed results with PROPER SCORING
     detailed_results = []
     for rank, result in enumerate(results, 1):
         resume = db.query(Resume).filter(Resume.id == result.resume_id).first()
@@ -212,7 +216,7 @@ async def get_matching_results(session_id: str, db: Session = Depends(get_db)):
         if resume:
             resume_data = resume.structured_data if resume.structured_data else {}
             
-            # ✅ Ensure scores are properly formatted and not null/zero
+            # Ensure scores are properly formatted and not null/zero
             skill_score = result.skill_match_score if result.skill_match_score is not None else 0
             exp_score = result.experience_score if result.experience_score is not None else 0
             
@@ -282,7 +286,7 @@ async def get_detailed_analysis(session_id: str, resume_id: int, db: Session = D
         "experience_timeline": resume_data.get('experience_timeline', [])
     }
     
-    # ✅ Matching analysis with proper scores
+    # Matching analysis with proper scores
     detailed_analysis = result.detailed_analysis or {}
     skill_score = result.skill_match_score if result.skill_match_score is not None else 0
     exp_score = result.experience_score if result.experience_score is not None else 0

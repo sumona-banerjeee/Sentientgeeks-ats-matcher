@@ -1480,4 +1480,3 @@ class MatchingEngine:
             "experience_score": 0,
             "detailed_analysis": {"error": error_msg}
         }
-
