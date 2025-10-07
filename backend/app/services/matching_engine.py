@@ -420,48 +420,141 @@ class MatchingEngine:
     
     # SCORE 2: Enhanced Experience Matching with JD Requirements
     def _calculate_enhanced_experience_score(self, resume_data: Dict, job_priorities: List[Dict], jd_experience_required: float) -> float:
-        """Calculate enhanced experience score with JD requirement matching (0-100 points)"""
-        
+        """
+        Calculate enhanced experience score with STRICT skill-relevance validation
+        Only counts experience in JD-required technologies
+        """
+    
         experience_timeline = resume_data.get('experience_timeline', [])
         total_experience = resume_data.get('total_experience', 0)
-        
-        print(f"🏢 ENHANCED EXPERIENCE SCORING:")
+    
+        print(f"🏢 ENHANCED EXPERIENCE SCORING (SKILL-VALIDATED):")
         print(f"  📅 Total Experience: {total_experience} years")
         print(f"  📋 JD Required Experience: {jd_experience_required} years")
-        print(f"  📋 Experience Timeline: {len(experience_timeline)} jobs")
-        
+    
         # Handle fresh graduates
         if not experience_timeline or total_experience == 0:
             if jd_experience_required == 0:
                 print("  🎓 Fresh Graduate + No Experience Required = 50/100")
-                return 50.0  # Neutral score when no experience required
+                return 50.0
             else:
                 print("  🎓 Fresh Graduate but Experience Required = 10/100")
-                return 10.0  # Low score when experience is required
-        
-        # STEP 1: Experience Requirement Matching Score (40% weight)
-        experience_requirement_score = self._calculate_experience_requirement_score(total_experience, jd_experience_required)
-        
-        # STEP 2: Relevant Experience Score (40% weight)
-        relevant_experience_score = self._calculate_relevant_experience_score(experience_timeline, job_priorities)
-        
-        # STEP 3: Recent/Current Experience Bonus (20% weight)
-        recent_experience_bonus = self._calculate_recent_experience_bonus(experience_timeline, job_priorities)
-        
-        # Final experience score calculation
-        final_experience_score = (
-            experience_requirement_score * 0.4 +
-            relevant_experience_score * 0.4 +
-            recent_experience_bonus * 0.2
+                return 10.0
+    
+        # STEP 1: Calculate RELEVANT experience (only in JD technologies)
+        relevant_experience_years = self._calculate_skill_relevant_experience(
+            experience_timeline, job_priorities
         )
-        
+    
+        print(f"  ✅ RELEVANT Experience (in JD skills): {relevant_experience_years:.1f} years")
+        print(f"  ❌ IRRELEVANT Experience (ignored): {total_experience - relevant_experience_years:.1f} years")
+    
+        # STEP 2: Experience Requirement Score (40% weight)
+        # Based on RELEVANT experience only
+        requirement_score = self._calculate_skill_based_requirement_score(
+            relevant_experience_years, jd_experience_required
+        )
+    
+        # STEP 3: Relevant Experience Quality Score (40% weight)
+        quality_score = self._calculate_relevant_experience_quality(
+            experience_timeline, job_priorities, relevant_experience_years
+        )
+    
+        # STEP 4: Recent/Current Experience Bonus (20% weight)
+        recent_bonus = self._calculate_recent_experience_bonus(experience_timeline, job_priorities)
+    
+        # Final calculation
+        final_experience_score = (
+            requirement_score * 0.4 +
+            quality_score * 0.4 +
+            recent_bonus * 0.2
+        )
+    
         print(f"  📊 Experience Breakdown:")
-        print(f"    • Requirement Match: {experience_requirement_score:.1f}/100 (40% weight)")
-        print(f"    • Relevant Experience: {relevant_experience_score:.1f}/100 (40% weight)")
-        print(f"    • Recent/Current Bonus: {recent_experience_bonus:.1f}/100 (20% weight)")
+        print(f"    • Requirement Match: {requirement_score:.1f}/100 (based on {relevant_experience_years:.1f}y relevant)")
+        print(f"    • Quality Score: {quality_score:.1f}/100")
+        print(f"    • Recent Bonus: {recent_bonus:.1f}/100")
         print(f"    • Final Experience Score: {final_experience_score:.1f}/100")
-        
+    
         return min(100, max(0, final_experience_score))
+    
+
+    def _calculate_relevant_experience_quality(self, experience_timeline: List[Dict], job_priorities: List[Dict], total_relevant_years: float) -> float:
+        """
+        Calculate quality of relevant experience
+        """
+    
+        if total_relevant_years == 0:
+            return 0.0
+    
+        # Collect all required skills
+        all_required_skills = []
+        for priority in job_priorities:
+            all_required_skills.extend([skill.lower().strip() for skill in priority['key_skills']])
+    
+        quality_factors = []
+    
+        for experience in experience_timeline:
+            exp_technologies = [tech.lower().strip() for tech in experience.get('technologies_used', [])]
+            exp_duration = experience.get('duration', '')
+            years = self._extract_years_from_duration(exp_duration)
+        
+            # Count matched skills
+            matched_count = 0
+            for required_skill in all_required_skills:
+                for exp_tech in exp_technologies:
+                    if self._enhanced_technology_match(required_skill, exp_tech):
+                        matched_count += 1
+                        break
+        
+            if matched_count > 0:
+                skill_coverage = matched_count / len(all_required_skills)
+            
+                # Quality factors
+                recency_bonus = 1.0
+                if 'present' in exp_duration.lower() or 'current' in exp_duration.lower():
+                    recency_bonus = 1.3
+            
+                duration_bonus = 1.0
+                if years >= 2:
+                    duration_bonus = 1.2
+            
+                quality = skill_coverage * recency_bonus * duration_bonus * 100
+                quality_factors.append(quality)
+    
+        if quality_factors:
+            return min(100, sum(quality_factors) / len(quality_factors))
+    
+        return 0.0
+    
+
+    def _calculate_skill_based_requirement_score(self, relevant_experience: float, jd_required: float) -> float:
+        """
+        Calculate requirement score based ONLY on relevant experience
+        This prevents aircraft engineer with 3y getting high score for Python 2y requirement
+        """
+    
+        if jd_required == 0:
+            return 100.0
+    
+        if relevant_experience >= jd_required:
+            # Meets or exceeds requirement
+            if relevant_experience >= jd_required * 1.5:
+                return 100.0  # 150%+ of required
+            else:
+                # Linear scale from 85 to 100
+                excess_ratio = (relevant_experience - jd_required) / (jd_required * 0.5)
+                return 85 + (excess_ratio * 15)
+        else:
+            # Below requirement
+            ratio = relevant_experience / jd_required
+        
+            if ratio >= 0.8:  # 80-100% of requirement
+                return 60 + ((ratio - 0.8) * 125)  # 60-85 range
+            elif ratio >= 0.5:  # 50-80% of requirement
+                return 30 + ((ratio - 0.5) * 100)  # 30-60 range
+            else:  # Less than 50% of requirement
+                return ratio * 60  # 0-30 range
     
     def _calculate_experience_requirement_score(self, total_experience: float, jd_experience_required: float) -> float:
         """Calculate score based on JD experience requirement"""
@@ -689,32 +782,84 @@ class MatchingEngine:
         
         return max_bonus
     
+
+    def _calculate_skill_relevant_experience(self, experience_timeline: List[Dict], job_priorities: List[Dict]) -> float:
+        """
+        Calculate ONLY the experience in JD-required skills
+        This is the CRITICAL fix - only count relevant experience
+        """
+    
+        # Collect all required skills from all priorities
+        all_required_skills = []
+        for priority in job_priorities:
+            all_required_skills.extend([skill.lower().strip() for skill in priority['key_skills']])
+    
+        total_relevant_years = 0.0
+    
+        print(f"\n  🔍 Validating Experience Relevance:")
+    
+        for experience in experience_timeline:
+            exp_role = experience.get('role', '').lower()
+            exp_technologies = [tech.lower().strip() for tech in experience.get('technologies_used', [])]
+            exp_duration = experience.get('duration', '')
+            exp_company = experience.get('company', '')
+        
+            # Calculate actual years worked
+            years = self._extract_years_from_duration(exp_duration)
+        
+            # Check if this experience has ANY required skills
+            matched_skills = []
+            for required_skill in all_required_skills:
+                for exp_tech in exp_technologies:
+                    if self._enhanced_technology_match(required_skill, exp_tech):
+                        matched_skills.append(required_skill)
+                        break
+        
+            # Calculate relevance percentage
+            if all_required_skills:
+                relevance_percentage = len(set(matched_skills)) / len(set(all_required_skills))
+            else:
+                relevance_percentage = 0.0
+        
+            # Only count if relevance is significant (at least 10% of required skills)
+            if relevance_percentage >= 0.10:  # Must have at least 10% of required skills
+                # Calculate weighted years based on relevance
+                weighted_years = years * relevance_percentage
+                total_relevant_years += weighted_years
+            
+                print(f"    ✅ {exp_company} - {exp_role}")
+                print(f"       Duration: {years:.1f}y | Relevance: {relevance_percentage*100:.0f}% | Weighted: {weighted_years:.1f}y")
+                print(f"       Matched Skills: {', '.join(set(matched_skills))}")
+            else:
+                print(f"    ❌ {exp_company} - {exp_role}")
+                print(f"       Duration: {years:.1f}y | Relevance: {relevance_percentage*100:.0f}% | IGNORED (not relevant to JD)")
+    
+        return total_relevant_years
+
     # Helper Methods
     def _enhanced_candidate_has_skill(self, target_skill: str, resume_skills: List[str]) -> bool:
-        """Enhanced skill matching"""
-        
+        """
+        Enhanced skill matching with multiple strategies
+        """
         target_normalized = self._normalize_skill(target_skill)
-        
+    
         for resume_skill in resume_skills:
             resume_normalized = self._normalize_skill(resume_skill)
-            
+        
             # Exact match
             if target_normalized == resume_normalized:
                 return True
-            
+        
             # Synonym match
             if self._enhanced_skill_synonym_match(target_normalized, resume_normalized):
                 return True
-            
-            # Partial match
-            if target_normalized in resume_normalized or resume_normalized in target_normalized:
-                return True
-            
-            # Fuzzy match
+        
+            # Fuzzy match (FIXED - removed underscore)
             if self._fuzzy_skill_match(target_normalized, resume_normalized):
                 return True
-        
+    
         return False
+
     
     def _enhanced_technology_match(self, required_tech: str, resume_tech: str) -> bool:
         """Enhanced technology matching"""
@@ -785,8 +930,8 @@ class MatchingEngine:
         
         return False
     
-    def _fuzzy_skill_match(self, skill1: str, skill2: str) -> bool:
-        """Fuzzy matching for skills"""
+    """ def _fuzzy_skill_match(self, skill1: str, skill2: str) -> bool:
+        #Fuzzy matching for skills
         
         if len(skill1) < 3 or len(skill2) < 3:
             return False
@@ -808,8 +953,120 @@ class MatchingEngine:
             except:
                 pass
         
+        return False """
+    
+
+    def _fuzzy_skill_match(self, skill1: str, skill2: str) -> bool:
+        """Fuzzy matching for skills with proper vector checking"""
+        if len(skill1) < 3 or len(skill2) < 3:
+            return False
+    
+        # spaCy semantic similarity
+        if self.nlp:
+            try:
+                doc1 = self.nlp(skill1)
+                doc2 = self.nlp(skill2)
+            
+                # Check if vectors are valid before comparison
+                if doc1.has_vector and doc2.has_vector and doc1.vector_norm > 0 and doc2.vector_norm > 0:
+                    similarity = doc1.similarity(doc2)
+                    return similarity > 0.85  # High similarity threshold
+            except Exception as e:
+                print(f"⚠️ Similarity calculation error: {e}")
+    
         return False
     
+
+
+    def check_domain_relevance(self, resume_data: Dict, job_priorities: List[Dict]) -> tuple:
+        """
+        Check if candidate's domain is relevant to the job
+        Returns: (is_relevant: bool, confidence: float, reason: str)
+        """
+        # Extract candidate's domain from resume
+        education = resume_data.get('education', [])
+        experience_timeline = resume_data.get('experience_timeline', [])
+        skills = resume_data.get('skills', [])
+        current_role = resume_data.get('current_role', '').lower()
+    
+        # Define domain keywords
+        tech_domains = {
+        'software', 'developer', 'programming', 'web', 'frontend', 'backend', 
+        'fullstack', 'java', 'python', 'javascript', 'react', 'angular', 'node',
+        'django', 'flask', 'dotnet', 'php', 'mobile', 'app', 'cloud', 'devops',
+        'database', 'sql', 'api', 'microservices', 'engineering', 'computer science',
+        'information technology', 'bca', 'btech', 'mca', 'mtech', 'software engineer'
+        }
+    
+        non_tech_domains = {
+        'mechanical', 'civil', 'electrical', 'chemical', 'automobile', 'aerospace',
+        'aeronautical', 'aircraft', 'aviation', 'marine', 'petroleum', 'mining',
+        'metallurgy', 'textile', 'architecture', 'construction', 'structural',
+        'medicine', 'doctor', 'nursing', 'pharmacy', 'biotechnology',
+        'agriculture', 'forestry', 'veterinary', 'fashion', 'interior design'
+        }
+    
+        # Check education background
+        education_text = ' '.join([
+            str(edu.get('degree', '')).lower() + ' ' +
+            str(edu.get('major', '')).lower() + ' ' +
+            str(edu.get('field', '')).lower()
+            for edu in education
+        ])
+    
+        # Check experience roles
+        experience_text = ' '.join([
+            str(exp.get('role', '')).lower() + ' ' +
+            str(exp.get('company', '')).lower()
+            for exp in experience_timeline
+        ])
+    
+        # Combine all text
+        candidate_profile = f"{education_text} {experience_text} {current_role}".lower()
+    
+        # Count domain indicators
+        tech_score = sum(1 for keyword in tech_domains if keyword in candidate_profile)
+        non_tech_score = sum(1 for keyword in non_tech_domains if keyword in candidate_profile)
+    
+        # Check if job requires tech skills
+        job_is_tech = any(
+            keyword in str(priority.get('role', '')).lower()
+            for priority in job_priorities
+            for keyword in tech_domains
+        )
+    
+        # Decision logic
+        if non_tech_score > 0 and tech_score == 0:
+            # Clear non-tech candidate
+            return False, 0.0, f"❌ Non-tech domain detected (Found {non_tech_score} non-tech indicators, 0 tech indicators)"
+    
+        elif tech_score >= 2:
+            # Strong tech candidate
+            return True, 1.0, f"✅ Tech domain confirmed ({tech_score} tech indicators)"
+    
+        elif tech_score == 1 and non_tech_score == 0:
+            # Possibly tech candidate
+            return True, 0.7, f"⚠️ Limited tech indicators (Found {tech_score} tech indicator)"
+    
+        elif tech_score > 0 and non_tech_score > 0:
+            # Mixed background
+            if tech_score > non_tech_score:
+                return True, 0.8, f"⚠️ Mixed background, tech-leaning ({tech_score} tech vs {non_tech_score} non-tech)"
+            else:
+                return False, 0.3, f"❌ Mixed background, non-tech-leaning ({non_tech_score} non-tech vs {tech_score} tech)"
+    
+        else:
+            # Unclear background - check skills
+            tech_skills = sum(1 for skill in skills if any(tech in skill.lower() for tech in tech_domains))
+            if tech_skills >= 3:
+                return True, 0.6, f"✅ Tech skills found ({tech_skills} tech skills)"
+            else:
+                return False, 0.2, f"❌ Insufficient tech background"
+
+
+
+
+
     def _normalize_skill(self, skill: str) -> str:
         """Normalize skill for consistent matching"""
         
@@ -1260,6 +1517,1375 @@ class MatchingEngine:
         'key_skills': ['database management', 'sql', 'mysql', 'oracle', 'postgresql', 'data migration'],
         'patterns': ['database management', 'dbms specialist', 'database support'],
         'weight': 1.0
+    }, 
+    {
+    'role': 'Mechanical Engineer',
+    'key_skills': ['autocad', 'solidworks', 'catia', 'cad', 'manufacturing', 'design', 'mechanical design', 'thermodynamics', 'fluid mechanics'],
+    'patterns': ['mechanical engineer', 'mechanical', 'manufacturing engineer', 'design engineer'],
+    'weight': 1.0
+},
+{
+    'role': 'Civil Engineer',
+    'key_skills': ['autocad', 'civil 3d', 'structural design', 'construction', 'surveying', 'site planning', 'structural analysis', 'revit'],
+    'patterns': ['civil engineer', 'civil engineering', 'structural engineer', 'construction engineer', 'site engineer'],
+    'weight': 1.0
+},
+{
+    'role': 'Electrical Engineer',
+    'key_skills': ['circuit design', 'pcb design', 'plc', 'scada', 'electrical systems', 'power systems', 'autocad electrical', 'matlab'],
+    'patterns': ['electrical engineer', 'electrical', 'power engineer', 'electronics engineer'],
+    'weight': 1.0
+},
+{
+    'role': 'Aeronautical Engineer',
+    'key_skills': ['aerodynamics', 'aircraft design', 'catia', 'ansys', 'cfd', 'structural analysis', 'flight mechanics', 'aviation'],
+    'patterns': ['aeronautical engineer', 'aerospace engineer', 'aircraft engineer', 'aviation engineer'],
+    'weight': 1.0
+},
+{
+    'role': 'Chemical Engineer',
+    'key_skills': ['process design', 'chemical processes', 'process simulation', 'aspen plus', 'hysys', 'process safety', 'plant design'],
+    'patterns': ['chemical engineer', 'process engineer', 'chemical'],
+    'weight': 1.0
+},
+{
+    'role': 'Industrial Engineer',
+    'key_skills': ['lean manufacturing', 'six sigma', 'process improvement', 'supply chain', 'operations management', 'quality control'],
+    'patterns': ['industrial engineer', 'process improvement', 'operations engineer', 'lean engineer'],
+    'weight': 1.0
+},
+
+# ============= HEALTHCARE & MEDICAL =============
+{
+    'role': 'Medical Doctor',
+    'key_skills': ['clinical diagnosis', 'patient care', 'medical procedures', 'mbbs', 'md', 'treatment planning', 'emergency medicine'],
+    'patterns': ['doctor', 'physician', 'medical officer', 'general practitioner', 'consultant'],
+    'weight': 1.0
+},
+{
+    'role': 'Nurse',
+    'key_skills': ['patient care', 'nursing', 'medical procedures', 'medication administration', 'critical care', 'emergency response'],
+    'patterns': ['nurse', 'registered nurse', 'staff nurse', 'nursing', 'rn'],
+    'weight': 1.0
+},
+{
+    'role': 'Pharmacist',
+    'key_skills': ['pharmaceutical care', 'medication dispensing', 'drug interactions', 'pharmacy management', 'clinical pharmacy'],
+    'patterns': ['pharmacist', 'pharmacy', 'clinical pharmacist'],
+    'weight': 1.0
+},
+
+# ============= FINANCE & ACCOUNTING =============
+{
+    'role': 'Accountant',
+    'key_skills': ['accounting', 'bookkeeping', 'financial reporting', 'taxation', 'tally', 'quickbooks', 'gst', 'auditing'],
+    'patterns': ['accountant', 'accounts executive', 'finance executive', 'accounting'],
+    'weight': 1.0
+},
+{
+    'role': 'Financial Analyst',
+    'key_skills': ['financial analysis', 'financial modeling', 'budgeting', 'forecasting', 'excel', 'valuation', 'investment analysis'],
+    'patterns': ['financial analyst', 'finance analyst', 'investment analyst'],
+    'weight': 1.0
+},
+{
+    'role': 'Chartered Accountant',
+    'key_skills': ['auditing', 'taxation', 'financial reporting', 'compliance', 'ifrs', 'ind as', 'direct tax', 'indirect tax'],
+    'patterns': ['chartered accountant', 'ca', 'audit manager'],
+    'weight': 1.0
+},
+
+# ============= MARKETING & SALES =============
+{
+    'role': 'Marketing Manager',
+    'key_skills': ['marketing strategy', 'brand management', 'digital marketing', 'campaign management', 'market research', 'seo', 'social media'],
+    'patterns': ['marketing manager', 'brand manager', 'marketing head'],
+    'weight': 1.0
+},
+{
+    'role': 'Digital Marketing Specialist',
+    'key_skills': ['seo', 'sem', 'google ads', 'facebook ads', 'content marketing', 'social media marketing', 'email marketing', 'analytics'],
+    'patterns': ['digital marketing', 'seo specialist', 'sem specialist', 'social media manager'],
+    'weight': 1.0
+},
+
+# ============= HUMAN RESOURCES =============
+{
+    'role': 'HR Manager',
+    'key_skills': ['recruitment', 'talent acquisition', 'employee relations', 'performance management', 'hr policies', 'compensation', 'training'],
+    'patterns': ['hr manager', 'human resources manager', 'hr head', 'people manager'],
+    'weight': 1.0
+},
+{
+    'role': 'Recruiter',
+    'key_skills': ['recruitment', 'talent acquisition', 'sourcing', 'screening', 'interviewing', 'candidate management', 'ats'],
+    'patterns': ['recruiter', 'talent acquisition', 'recruitment specialist', 'hiring'],
+    'weight': 1.0
+},
+
+# ============= EDUCATION & TRAINING =============
+{
+    'role': 'Teacher',
+    'key_skills': ['teaching', 'curriculum development', 'classroom management', 'lesson planning', 'student assessment', 'education'],
+    'patterns': ['teacher', 'educator', 'faculty', 'lecturer', 'professor'],
+    'weight': 1.0
+},
+{
+    'role': 'Corporate Trainer',
+    'key_skills': ['training', 'facilitation', 'learning development', 'presentation skills', 'training design', 'instructional design'],
+    'patterns': ['trainer', 'corporate trainer', 'training specialist', 'learning specialist'],
+    'weight': 1.0
+},
+
+# ============= LEGAL =============
+{
+    'role': 'Lawyer',
+    'key_skills': ['legal research', 'litigation', 'contract drafting', 'legal compliance', 'corporate law', 'legal advisory'],
+    'patterns': ['lawyer', 'advocate', 'legal counsel', 'attorney', 'legal advisor'],
+    'weight': 1.0
+},
+
+# ============= OPERATIONS & SUPPLY CHAIN =============
+{
+    'role': 'Supply Chain Manager',
+    'key_skills': ['supply chain management', 'logistics', 'inventory management', 'procurement', 'vendor management', 'operations'],
+    'patterns': ['supply chain manager', 'logistics manager', 'operations manager', 'procurement manager'],
+    'weight': 1.0
+},
+
+# ============= CUSTOMER SERVICE =============
+{
+    'role': 'Customer Support Executive',
+    'key_skills': ['customer service', 'communication', 'problem solving', 'crm', 'call handling', 'complaint resolution'],
+    'patterns': ['customer support', 'customer service', 'support executive', 'customer care'],
+    'weight': 1.0
+},
+
+# ============= ARCHITECTURE & DESIGN =============
+{
+    'role': 'Architect',
+    'key_skills': ['architectural design', 'autocad', 'revit', 'sketchup', '3d modeling', 'building design', 'construction drawings'],
+    'patterns': ['architect', 'architectural designer', 'design architect'],
+    'weight': 1.0
+},
+{
+    'role': 'Interior Designer',
+    'key_skills': ['interior design', 'space planning', 'autocad', '3d max', 'sketchup', 'furniture design', 'color theory'],
+    'patterns': ['interior designer', 'interior decorator', 'space designer'],
+    'weight': 1.0
+},
+
+# ============= CONTENT & MEDIA =============
+{
+    'role': 'Content Writer',
+    'key_skills': ['content writing', 'copywriting', 'seo writing', 'blogging', 'creative writing', 'editing', 'proofreading'],
+    'patterns': ['content writer', 'copywriter', 'writer', 'content creator'],
+    'weight': 1.0
+},
+{
+    'role': 'Video Editor',
+    'key_skills': ['video editing', 'adobe premiere', 'final cut pro', 'after effects', 'motion graphics', 'color grading'],
+    'patterns': ['video editor', 'video producer', 'multimedia editor'],
+    'weight': 1.0
+},
+
+{
+    'role': 'Hotel Manager',
+    'key_skills': ['hotel management', 'hospitality', 'guest relations', 'operations management', 'front office', 'food and beverage'],
+    'patterns': ['hotel manager', 'hospitality manager', 'guest relations manager'],
+    'weight': 1.0
+},
+
+{
+    'role': 'Management Professional',
+    'key_skills': ['management', 'leadership', 'strategy', 'operations', 'team management', 'planning'],
+    'patterns': ['manager', 'management', 'supervisor', 'team lead'],
+    'weight': 0.5
+},
+ {
+        'role': 'Python Developer',
+        'key_skills': ['python', 'django', 'flask', 'fastapi', 'pandas', 'numpy', 'sqlalchemy'],
+        'patterns': ['python developer', 'python engineer', 'django developer', 'flask developer', 'fastapi developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Java Developer',
+        'key_skills': ['java', 'spring', 'spring boot', 'hibernate', 'jsp', 'maven', 'microservices'],
+        'patterns': ['java developer', 'java engineer', 'spring developer', 'j2ee', 'spring boot developer'],
+        'weight': 1.0
+    },
+    {
+        'role': '.NET Developer',
+        'key_skills': ['c#', '.net', 'asp.net', 'sql server', 'mvc', 'entity framework', '.net core'],
+        'patterns': ['.net developer', 'dotnet developer', 'c# developer', 'asp.net developer', 'mvc developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'JavaScript Developer',
+        'key_skills': ['javascript', 'react', 'angular', 'vue', 'node.js', 'express', 'typescript'],
+        'patterns': ['javascript developer', 'js developer', 'frontend developer', 'react developer', 'angular developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'PHP Developer',
+        'key_skills': ['php', 'laravel', 'codeigniter', 'symfony', 'mysql', 'wordpress', 'composer'],
+        'patterns': ['php developer', 'laravel developer', 'codeigniter developer', 'wordpress developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Ruby Developer',
+        'key_skills': ['ruby', 'ruby on rails', 'rails', 'rspec', 'postgresql', 'sinatra'],
+        'patterns': ['ruby developer', 'rails developer', 'ruby on rails developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Go Developer',
+        'key_skills': ['go', 'golang', 'gin', 'gorilla', 'postgresql', 'redis', 'microservices'],
+        'patterns': ['go developer', 'golang developer', 'go engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'C++ Developer',
+        'key_skills': ['c++', 'stl', 'boost', 'qt', 'visual studio', 'object oriented programming'],
+        'patterns': ['c++ developer', 'cpp developer', 'c++ engineer', 'c++ programmer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Rust Developer',
+        'key_skills': ['rust', 'cargo', 'systems programming', 'memory safety', 'concurrency'],
+        'patterns': ['rust developer', 'rust engineer', 'rust programmer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Scala Developer',
+        'key_skills': ['scala', 'akka', 'play framework', 'spark', 'functional programming'],
+        'patterns': ['scala developer', 'scala engineer', 'scala programmer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Kotlin Developer',
+        'key_skills': ['kotlin', 'android', 'spring boot', 'coroutines', 'jetpack'],
+        'patterns': ['kotlin developer', 'kotlin engineer', 'kotlin programmer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Swift Developer',
+        'key_skills': ['swift', 'ios', 'xcode', 'cocoa touch', 'uikit', 'swiftui'],
+        'patterns': ['swift developer', 'swift engineer', 'swift programmer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Full Stack Developer',
+        'key_skills': ['javascript', 'react', 'node.js', 'python', 'django', 'postgresql', 'mongodb'],
+        'patterns': ['full stack developer', 'fullstack developer', 'full-stack developer', 'full stack engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Frontend Developer',
+        'key_skills': ['html', 'css', 'javascript', 'react', 'angular', 'vue', 'webpack', 'sass'],
+        'patterns': ['frontend developer', 'front-end developer', 'ui developer', 'web developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Backend Developer',
+        'key_skills': ['api', 'database', 'microservices', 'rest', 'sql', 'nosql', 'redis'],
+        'patterns': ['backend developer', 'back-end developer', 'api developer', 'server developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'MERN Stack Developer',
+        'key_skills': ['mongodb', 'express', 'react', 'node.js', 'javascript', 'rest api'],
+        'patterns': ['mern stack developer', 'mern developer', 'mern stack'],
+        'weight': 1.0
+    },
+    {
+        'role': 'MEAN Stack Developer',
+        'key_skills': ['mongodb', 'express', 'angular', 'node.js', 'javascript', 'typescript'],
+        'patterns': ['mean stack developer', 'mean developer', 'mean stack'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Android Developer',
+        'key_skills': ['android', 'java', 'kotlin', 'android studio', 'firebase', 'rest api'],
+        'patterns': ['android developer', 'android engineer', 'mobile android developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'iOS Developer',
+        'key_skills': ['ios', 'swift', 'objective-c', 'xcode', 'cocoa touch', 'core data'],
+        'patterns': ['ios developer', 'ios engineer', 'iphone developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Flutter Developer',
+        'key_skills': ['flutter', 'dart', 'mobile development', 'cross-platform', 'firebase'],
+        'patterns': ['flutter developer', 'flutter engineer', 'flutter mobile developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'React Native Developer',
+        'key_skills': ['react native', 'javascript', 'mobile apps', 'ios', 'android', 'redux'],
+        'patterns': ['react native developer', 'rn developer', 'react native engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Game Developer',
+        'key_skills': ['unity', 'unreal engine', 'c++', 'c#', 'game design', '3d graphics'],
+        'patterns': ['game developer', 'unity developer', 'unreal developer', 'game programmer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Embedded Systems Engineer',
+        'key_skills': ['embedded c', 'firmware', 'microcontrollers', 'rtos', 'iot', 'arm'],
+        'patterns': ['embedded engineer', 'embedded systems', 'firmware engineer', 'iot developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Blockchain Developer',
+        'key_skills': ['solidity', 'ethereum', 'smart contracts', 'web3', 'blockchain', 'cryptocurrency'],
+        'patterns': ['blockchain developer', 'smart contract developer', 'web3 developer', 'crypto developer'],
+        'weight': 1.0
+    },
+    
+    
+    {
+        'role': 'Data Scientist',
+        'key_skills': ['python', 'machine learning', 'pandas', 'numpy', 'tensorflow', 'pytorch', 'statistics'],
+        'patterns': ['data scientist', 'ml scientist', 'research scientist'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Data Analyst',
+        'key_skills': ['data analysis', 'excel', 'power bi', 'tableau', 'sql', 'python', 'statistics'],
+        'patterns': ['data analyst', 'business intelligence analyst', 'analytics analyst'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Data Engineer',
+        'key_skills': ['python', 'spark', 'hadoop', 'kafka', 'airflow', 'etl', 'data pipelines'],
+        'patterns': ['data engineer', 'big data engineer', 'data platform engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Machine Learning Engineer',
+        'key_skills': ['machine learning', 'deep learning', 'tensorflow', 'pytorch', 'python', 'mlops'],
+        'patterns': ['machine learning engineer', 'ml engineer', 'ai engineer', 'deep learning engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Business Intelligence Analyst',
+        'key_skills': ['power bi', 'tableau', 'sql', 'data visualization', 'reporting', 'dax'],
+        'patterns': ['business intelligence', 'bi analyst', 'bi developer', 'reporting analyst'],
+        'weight': 1.0
+    },
+    {
+        'role': 'ETL Developer',
+        'key_skills': ['etl', 'informatica', 'ssis', 'data warehousing', 'sql', 'talend'],
+        'patterns': ['etl developer', 'data warehouse developer', 'informatica developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Tableau Developer',
+        'key_skills': ['tableau', 'data visualization', 'sql', 'dashboard design', 'analytics'],
+        'patterns': ['tableau developer', 'tableau consultant', 'tableau specialist'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Power BI Developer',
+        'key_skills': ['power bi', 'dax', 'power query', 'data modeling', 'sql', 'excel'],
+        'patterns': ['power bi developer', 'powerbi developer', 'power bi consultant'],
+        'weight': 1.0
+    },
+    
+    
+    {
+        'role': 'DevOps Engineer',
+        'key_skills': ['docker', 'kubernetes', 'jenkins', 'terraform', 'aws', 'azure', 'ci/cd'],
+        'patterns': ['devops engineer', 'devops', 'infrastructure engineer', 'sre'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Cloud Engineer',
+        'key_skills': ['aws', 'azure', 'gcp', 'terraform', 'cloudformation', 'cloud architecture'],
+        'patterns': ['cloud engineer', 'aws engineer', 'azure engineer', 'cloud architect'],
+        'weight': 1.0
+    },
+    {
+        'role': 'AWS Solutions Architect',
+        'key_skills': ['aws', 'ec2', 's3', 'lambda', 'cloudformation', 'vpc', 'iam'],
+        'patterns': ['aws solutions architect', 'aws architect', 'cloud solutions architect'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Azure Cloud Engineer',
+        'key_skills': ['azure', 'azure devops', 'arm templates', 'azure functions', 'active directory'],
+        'patterns': ['azure engineer', 'azure cloud engineer', 'azure developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Site Reliability Engineer',
+        'key_skills': ['sre', 'monitoring', 'prometheus', 'grafana', 'kubernetes', 'incident management'],
+        'patterns': ['site reliability engineer', 'sre', 'reliability engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Kubernetes Engineer',
+        'key_skills': ['kubernetes', 'docker', 'helm', 'container orchestration', 'microservices'],
+        'patterns': ['kubernetes engineer', 'k8s engineer', 'container engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'System Administrator',
+        'key_skills': ['linux', 'windows server', 'networking', 'bash', 'powershell', 'active directory'],
+        'patterns': ['system administrator', 'sysadmin', 'systems admin', 'infrastructure admin'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Network Engineer',
+        'key_skills': ['networking', 'cisco', 'routing', 'switching', 'firewalls', 'tcp/ip'],
+        'patterns': ['network engineer', 'network administrator', 'network specialist'],
+        'weight': 1.0
+    },
+    
+    {
+        'role': 'Cybersecurity Engineer',
+        'key_skills': ['security', 'penetration testing', 'vulnerability assessment', 'firewalls', 'siem'],
+        'patterns': ['cybersecurity engineer', 'security engineer', 'infosec engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Penetration Tester',
+        'key_skills': ['penetration testing', 'ethical hacking', 'vulnerability assessment', 'metasploit', 'burp suite'],
+        'patterns': ['penetration tester', 'pen tester', 'ethical hacker', 'security tester'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Security Analyst',
+        'key_skills': ['security monitoring', 'threat analysis', 'siem', 'incident response', 'log analysis'],
+        'patterns': ['security analyst', 'cybersecurity analyst', 'infosec analyst'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Information Security Manager',
+        'key_skills': ['information security', 'risk management', 'compliance', 'iso 27001', 'security policies'],
+        'patterns': ['information security manager', 'infosec manager', 'security manager'],
+        'weight': 1.0
+    },
+    
+    {
+        'role': 'QA Engineer',
+        'key_skills': ['testing', 'automation', 'selenium', 'junit', 'testng', 'api testing'],
+        'patterns': ['qa engineer', 'quality assurance engineer', 'test engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Automation Test Engineer',
+        'key_skills': ['selenium', 'cypress', 'playwright', 'automation testing', 'java', 'python'],
+        'patterns': ['automation engineer', 'test automation engineer', 'sdet'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Manual Tester',
+        'key_skills': ['manual testing', 'test cases', 'bug tracking', 'jira', 'regression testing'],
+        'patterns': ['manual tester', 'manual test engineer', 'qa tester'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Performance Test Engineer',
+        'key_skills': ['performance testing', 'jmeter', 'loadrunner', 'load testing', 'stress testing'],
+        'patterns': ['performance test engineer', 'performance tester', 'load test engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Quality Analyst',
+        'key_skills': ['quality analysis', 'manual testing', 'test cases', 'bug tracking', 'regression testing'],
+        'patterns': ['quality analyst', 'qa analyst', 'software tester'],
+        'weight': 1.0
+    },
+    
+
+    
+    {
+        'role': 'Database Administrator',
+        'key_skills': ['sql', 'oracle', 'mysql', 'postgresql', 'database administration', 'backup recovery'],
+        'patterns': ['database administrator', 'dba', 'sql dba', 'oracle dba'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Database Developer',
+        'key_skills': ['sql', 'stored procedures', 'database design', 'query optimization', 'indexing'],
+        'patterns': ['database developer', 'sql developer', 'database programmer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Software Architect',
+        'key_skills': ['software architecture', 'system design', 'microservices', 'design patterns', 'scalability'],
+        'patterns': ['software architect', 'solution architect', 'technical architect'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Solutions Architect',
+        'key_skills': ['solution architecture', 'system design', 'cloud architecture', 'technical leadership'],
+        'patterns': ['solutions architect', 'solution architect', 'enterprise architect'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Product Architect',
+        'key_skills': ['product architecture', 'system design', 'technical strategy', 'product development'],
+        'patterns': ['product architect', 'technical product architect'],
+        'weight': 1.0
+    },
+    
+    
+    {
+        'role': 'UI/UX Designer',
+        'key_skills': ['ui design', 'ux design', 'figma', 'adobe xd', 'prototyping', 'user research'],
+        'patterns': ['ui/ux designer', 'ui designer', 'ux designer', 'product designer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Graphic Designer',
+        'key_skills': ['graphic design', 'photoshop', 'illustrator', 'indesign', 'branding', 'visual design'],
+        'patterns': ['graphic designer', 'visual designer', 'creative designer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Web Designer',
+        'key_skills': ['web design', 'html', 'css', 'figma', 'responsive design', 'adobe xd'],
+        'patterns': ['web designer', 'website designer', 'ui web designer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Motion Graphics Designer',
+        'key_skills': ['after effects', 'motion graphics', 'animation', 'video editing', 'adobe premiere'],
+        'patterns': ['motion graphics designer', 'motion designer', 'animator'],
+        'weight': 1.0
+    },
+
+    
+    {
+        'role': 'Mechanical Engineer',
+        'key_skills': ['autocad', 'solidworks', 'catia', 'mechanical design', 'manufacturing', 'cad'],
+        'patterns': ['mechanical engineer', 'design engineer', 'cad engineer', 'product design engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Mechanical Design Engineer',
+        'key_skills': ['solidworks', 'catia', 'creo', 'cad', 'mechanical design', '3d modeling'],
+        'patterns': ['mechanical design engineer', 'design engineer mechanical', 'cad design engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Manufacturing Engineer',
+        'key_skills': ['manufacturing processes', 'production planning', 'quality control', 'lean manufacturing'],
+        'patterns': ['manufacturing engineer', 'production engineer', 'process engineer manufacturing'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Production Engineer',
+        'key_skills': ['production planning', 'quality control', 'process optimization', 'manufacturing'],
+        'patterns': ['production engineer', 'production manager', 'production supervisor'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Maintenance Engineer',
+        'key_skills': ['preventive maintenance', 'troubleshooting', 'equipment maintenance', 'reliability'],
+        'patterns': ['maintenance engineer', 'plant maintenance engineer', 'facilities engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Quality Engineer',
+        'key_skills': ['quality control', 'quality assurance', 'six sigma', 'statistical analysis', 'iso'],
+        'patterns': ['quality engineer', 'quality control engineer', 'qa engineer manufacturing'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Automobile Engineer',
+        'key_skills': ['automotive engineering', 'vehicle design', 'catia', 'automotive systems'],
+        'patterns': ['automobile engineer', 'automotive engineer', 'vehicle engineer'],
+        'weight': 1.0
+    },
+    
+
+    
+    {
+        'role': 'Civil Engineer',
+        'key_skills': ['autocad', 'civil 3d', 'structural design', 'construction', 'surveying', 'revit'],
+        'patterns': ['civil engineer', 'structural engineer', 'construction engineer', 'site engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Structural Engineer',
+        'key_skills': ['structural analysis', 'staad pro', 'etabs', 'structural design', 'rcc design'],
+        'patterns': ['structural engineer', 'structural design engineer', 'structure engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Construction Engineer',
+        'key_skills': ['construction management', 'site supervision', 'project planning', 'quantity surveying'],
+        'patterns': ['construction engineer', 'site engineer', 'construction manager'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Quantity Surveyor',
+        'key_skills': ['quantity surveying', 'cost estimation', 'bill of quantities', 'contract management'],
+        'patterns': ['quantity surveyor', 'qs engineer', 'estimator'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Highway Engineer',
+        'key_skills': ['highway design', 'transportation engineering', 'pavement design', 'traffic engineering'],
+        'patterns': ['highway engineer', 'transportation engineer', 'traffic engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Geotechnical Engineer',
+        'key_skills': ['soil mechanics', 'foundation design', 'geotechnical investigation', 'soil testing'],
+        'patterns': ['geotechnical engineer', 'soil engineer', 'foundation engineer'],
+        'weight': 1.0
+    },
+    
+
+    
+    {
+        'role': 'Electrical Engineer',
+        'key_skills': ['electrical design', 'power systems', 'plc', 'scada', 'autocad electrical'],
+        'patterns': ['electrical engineer', 'power engineer', 'electrical design engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Electronics Engineer',
+        'key_skills': ['circuit design', 'pcb design', 'embedded systems', 'microcontrollers', 'vlsi'],
+        'patterns': ['electronics engineer', 'electronics design engineer', 'circuit design engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Instrumentation Engineer',
+        'key_skills': ['instrumentation', 'control systems', 'plc', 'dcs', 'scada', 'calibration'],
+        'patterns': ['instrumentation engineer', 'control engineer', 'i&c engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Power Electronics Engineer',
+        'key_skills': ['power electronics', 'inverters', 'converters', 'motor drives', 'power supply design'],
+        'patterns': ['power electronics engineer', 'power systems engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'VLSI Design Engineer',
+        'key_skills': ['vlsi', 'verilog', 'vhdl', 'rtl design', 'asic design', 'fpga'],
+        'patterns': ['vlsi engineer', 'vlsi design engineer', 'asic design engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Telecommunications Engineer',
+        'key_skills': ['telecommunications', 'networking', 'rf engineering', 'wireless communication'],
+        'patterns': ['telecommunications engineer', 'telecom engineer', 'rf engineer'],
+        'weight': 1.0
+    },
+
+    
+    {
+        'role': 'Chemical Engineer',
+        'key_skills': ['chemical processes', 'process design', 'aspen plus', 'process simulation', 'plant design'],
+        'patterns': ['chemical engineer', 'process engineer', 'process design engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Process Engineer',
+        'key_skills': ['process optimization', 'process design', 'chemical engineering', 'plant operations'],
+        'patterns': ['process engineer', 'process development engineer', 'chemical process engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Petroleum Engineer',
+        'key_skills': ['petroleum engineering', 'reservoir engineering', 'drilling', 'production engineering'],
+        'patterns': ['petroleum engineer', 'reservoir engineer', 'drilling engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Refinery Engineer',
+        'key_skills': ['refinery operations', 'process engineering', 'distillation', 'chemical processing'],
+        'patterns': ['refinery engineer', 'refinery operations engineer'],
+        'weight': 1.0
+    },
+
+    
+    {
+        'role': 'Aeronautical Engineer',
+        'key_skills': ['aerodynamics', 'aircraft design', 'catia', 'ansys', 'cfd', 'flight mechanics'],
+        'patterns': ['aeronautical engineer', 'aerospace engineer', 'aircraft engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Aerospace Design Engineer',
+        'key_skills': ['aerospace design', 'catia', 'cfd', 'structural analysis', 'aircraft systems'],
+        'patterns': ['aerospace design engineer', 'aircraft design engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Flight Test Engineer',
+        'key_skills': ['flight testing', 'test engineering', 'data analysis', 'aviation'],
+        'patterns': ['flight test engineer', 'test pilot engineer'],
+        'weight': 1.0
+    },
+
+    
+    {
+        'role': 'Industrial Engineer',
+        'key_skills': ['lean manufacturing', 'six sigma', 'process improvement', 'operations management'],
+        'patterns': ['industrial engineer', 'process improvement engineer', 'operations engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Lean Six Sigma Consultant',
+        'key_skills': ['lean manufacturing', 'six sigma', 'process optimization', 'continuous improvement'],
+        'patterns': ['lean six sigma', 'six sigma consultant', 'lean consultant'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Plant Engineer',
+        'key_skills': ['plant operations', 'maintenance management', 'process optimization', 'safety management'],
+        'patterns': ['plant engineer', 'plant manager', 'facility engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Metallurgical Engineer',
+        'key_skills': ['metallurgy', 'materials science', 'heat treatment', 'welding', 'material testing'],
+        'patterns': ['metallurgical engineer', 'metallurgy engineer', 'materials engineer'],
+        'weight': 1.0
+    },
+    
+
+    
+    {
+        'role': 'Biomedical Engineer',
+        'key_skills': ['biomedical engineering', 'medical devices', 'biomechanics', 'signal processing'],
+        'patterns': ['biomedical engineer', 'medical device engineer', 'clinical engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Environmental Engineer',
+        'key_skills': ['environmental engineering', 'waste management', 'water treatment', 'pollution control'],
+        'patterns': ['environmental engineer', 'environmental consultant', 'sustainability engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Safety Engineer',
+        'key_skills': ['safety management', 'osha', 'risk assessment', 'industrial safety', 'hse'],
+        'patterns': ['safety engineer', 'hse engineer', 'safety officer'],
+        'weight': 1.0
+    },
+    
+
+    
+    {
+        'role': 'Medical Doctor',
+        'key_skills': ['clinical diagnosis', 'patient care', 'medical procedures', 'mbbs', 'treatment planning'],
+        'patterns': ['doctor', 'physician', 'medical officer', 'general practitioner', 'consultant doctor'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Surgeon',
+        'key_skills': ['surgery', 'surgical procedures', 'patient care', 'operating room', 'medical procedures'],
+        'patterns': ['surgeon', 'surgical consultant', 'operating surgeon'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Dentist',
+        'key_skills': ['dental procedures', 'oral surgery', 'teeth cleaning', 'dental care', 'orthodontics'],
+        'patterns': ['dentist', 'dental surgeon', 'orthodontist'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Nurse',
+        'key_skills': ['patient care', 'nursing', 'medication administration', 'critical care', 'emergency response'],
+        'patterns': ['nurse', 'registered nurse', 'staff nurse', 'nursing officer', 'rn'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Pharmacist',
+        'key_skills': ['pharmaceutical care', 'medication dispensing', 'drug interactions', 'pharmacy management'],
+        'patterns': ['pharmacist', 'clinical pharmacist', 'hospital pharmacist'],
+        'weight': 1.0
+    },
+
+    {
+        'role': 'Aircraft Maintenance Engineer (AME)',
+        'key_skills': ['aircraft maintenance', 'dgca', 'ame license', 'aircraft systems', 'troubleshooting', 'airframe', 'powerplant', 'avionics'],
+        'patterns': ['aircraft maintenance engineer', 'ame', 'aircraft engineer', 'aviation maintenance', 'aircraft mechanic'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Aeronautical Engineer',
+        'key_skills': ['aerodynamics', 'aircraft design', 'catia', 'ansys', 'cfd', 'flight mechanics', 'structural analysis', 'aviation'],
+        'patterns': ['aeronautical engineer', 'aerospace engineer', 'aircraft engineer', 'aviation engineer', 'flight engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Aerospace Design Engineer',
+        'key_skills': ['aerospace design', 'catia', 'solidworks', 'cfd analysis', 'structural analysis', 'aircraft systems', 'ansys'],
+        'patterns': ['aerospace design engineer', 'aircraft design engineer', 'aeronautical design engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Avionics Engineer',
+        'key_skills': ['avionics systems', 'aircraft electronics', 'navigation systems', 'communication systems', 'radar', 'flight instruments'],
+        'patterns': ['avionics engineer', 'avionics technician', 'aircraft electronics engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Flight Test Engineer',
+        'key_skills': ['flight testing', 'test engineering', 'data analysis', 'aviation', 'aircraft performance', 'instrumentation'],
+        'patterns': ['flight test engineer', 'test pilot engineer', 'flight operations engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Aircraft Structural Engineer',
+        'key_skills': ['structural analysis', 'stress analysis', 'fatigue analysis', 'composite materials', 'fea', 'catia'],
+        'patterns': ['aircraft structural engineer', 'structures engineer', 'airframe engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Propulsion Engineer',
+        'key_skills': ['jet engines', 'turbine engines', 'engine performance', 'propulsion systems', 'thermodynamics'],
+        'patterns': ['propulsion engineer', 'engine engineer', 'powerplant engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Commercial Pilot',
+        'key_skills': ['flight operations', 'cpl license', 'atpl', 'aircraft operation', 'navigation', 'flight safety', 'aviation regulations'],
+        'patterns': ['commercial pilot', 'airline pilot', 'cpl', 'captain', 'first officer', 'co-pilot'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Private Pilot',
+        'key_skills': ['ppl license', 'flight operations', 'aircraft operation', 'navigation', 'flight planning'],
+        'patterns': ['private pilot', 'ppl', 'pilot trainee'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Helicopter Pilot',
+        'key_skills': ['helicopter operations', 'rotary wing', 'flight operations', 'aviation', 'helicopter flying'],
+        'patterns': ['helicopter pilot', 'chopper pilot', 'rotary wing pilot'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Flight Instructor',
+        'key_skills': ['flight training', 'aviation training', 'cfi', 'aircraft operation', 'flight instruction'],
+        'patterns': ['flight instructor', 'flying instructor', 'cfi', 'aviation instructor'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Air Traffic Controller',
+        'key_skills': ['air traffic control', 'atc', 'radar operations', 'aviation safety', 'communication', 'flight coordination'],
+        'patterns': ['air traffic controller', 'atc', 'air traffic control officer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Flight Dispatcher',
+        'key_skills': ['flight planning', 'weather analysis', 'route planning', 'fuel calculation', 'aviation regulations'],
+        'patterns': ['flight dispatcher', 'flight operations officer', 'dispatcher'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Cabin Crew / Flight Attendant',
+        'key_skills': ['customer service', 'safety procedures', 'emergency response', 'hospitality', 'passenger care', 'in-flight service'],
+        'patterns': ['cabin crew', 'flight attendant', 'air hostess', 'airhostess', 'steward', 'stewardess', 'flight steward'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Ground Staff',
+        'key_skills': ['airport operations', 'passenger handling', 'check-in', 'baggage handling', 'customer service'],
+        'patterns': ['ground staff', 'ground handling', 'airport staff', 'airport operations'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Airport Operations Manager',
+        'key_skills': ['airport management', 'operations management', 'aviation', 'safety management', 'coordination'],
+        'patterns': ['airport operations manager', 'airport manager', 'aviation operations manager'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Aviation Safety Officer',
+        'key_skills': ['aviation safety', 'safety management', 'accident investigation', 'risk assessment', 'compliance'],
+        'patterns': ['aviation safety officer', 'flight safety officer', 'safety manager aviation'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Drone Pilot / UAV Operator',
+        'key_skills': ['drone operation', 'uav', 'remote pilot', 'aerial photography', 'dgca rpas'],
+        'patterns': ['drone pilot', 'uav operator', 'drone operator', 'rpas pilot', 'unmanned aircraft pilot'],
+        'weight': 1.0
+    },
+
+    
+    {
+        'role': 'Locomotive Pilot / Train Driver',
+        'key_skills': ['train operation', 'locomotive driving', 'railway safety', 'signaling', 'railway operations'],
+        'patterns': ['locomotive pilot', 'loco pilot', 'train driver', 'engine driver', 'motorman', 'train operator'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Assistant Loco Pilot',
+        'key_skills': ['train assistance', 'locomotive operations', 'railway safety', 'signaling'],
+        'patterns': ['assistant loco pilot', 'alp', 'assistant train driver', 'assistant locomotive pilot'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Railway Engineer',
+        'key_skills': ['railway engineering', 'track maintenance', 'signaling', 'railway infrastructure'],
+        'patterns': ['railway engineer', 'permanent way engineer', 'track engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Signal & Telecom Engineer',
+        'key_skills': ['railway signaling', 'telecommunications', 'interlocking', 'signal maintenance'],
+        'patterns': ['signal engineer', 'telecom engineer railway', 's&t engineer', 'signaling engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Railway Technician',
+        'key_skills': ['railway maintenance', 'electrical systems', 'mechanical systems', 'troubleshooting'],
+        'patterns': ['railway technician', 'train technician', 'railway mechanic'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Train Conductor / Guard',
+        'key_skills': ['train operations', 'passenger safety', 'ticketing', 'railway operations'],
+        'patterns': ['train conductor', 'train guard', 'railway guard', 'ticket collector'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Station Master',
+        'key_skills': ['station management', 'railway operations', 'passenger coordination', 'train scheduling'],
+        'patterns': ['station master', 'station manager', 'railway station master'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Metro Train Operator',
+        'key_skills': ['metro operations', 'train driving', 'urban transport', 'safety protocols'],
+        'patterns': ['metro train operator', 'metro driver', 'subway operator'],
+        'weight': 1.0
+    },
+    
+    
+    {
+        'role': 'Civil Engineer',
+        'key_skills': ['autocad', 'civil 3d', 'structural design', 'construction', 'surveying', 'revit', 'site planning'],
+        'patterns': ['civil engineer', 'structural engineer', 'construction engineer', 'site engineer', 'civil engineering'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Structural Engineer',
+        'key_skills': ['structural analysis', 'staad pro', 'etabs', 'structural design', 'rcc design', 'steel structures'],
+        'patterns': ['structural engineer', 'structural design engineer', 'structure engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Construction Manager',
+        'key_skills': ['construction management', 'project management', 'site supervision', 'planning', 'scheduling'],
+        'patterns': ['construction manager', 'project manager construction', 'site manager'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Site Engineer',
+        'key_skills': ['site supervision', 'construction', 'quality control', 'safety management', 'civil work'],
+        'patterns': ['site engineer', 'site supervisor', 'civil site engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Quantity Surveyor',
+        'key_skills': ['quantity surveying', 'cost estimation', 'bill of quantities', 'tendering', 'contract management'],
+        'patterns': ['quantity surveyor', 'qs', 'estimator', 'cost estimator'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Highway Engineer',
+        'key_skills': ['highway design', 'transportation engineering', 'pavement design', 'traffic engineering', 'road construction'],
+        'patterns': ['highway engineer', 'road engineer', 'transportation engineer', 'traffic engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Geotechnical Engineer',
+        'key_skills': ['soil mechanics', 'foundation design', 'geotechnical investigation', 'soil testing', 'ground improvement'],
+        'patterns': ['geotechnical engineer', 'soil engineer', 'foundation engineer', 'geo engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Water Resources Engineer',
+        'key_skills': ['hydrology', 'water resources', 'irrigation', 'drainage', 'hydraulic design'],
+        'patterns': ['water resources engineer', 'irrigation engineer', 'hydraulic engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Bridge Engineer',
+        'key_skills': ['bridge design', 'structural analysis', 'bridge construction', 'staad pro'],
+        'patterns': ['bridge engineer', 'bridge design engineer', 'bridge construction engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Urban Planner',
+        'key_skills': ['urban planning', 'land use planning', 'gis', 'city planning', 'development planning'],
+        'patterns': ['urban planner', 'town planner', 'city planner'],
+        'weight': 1.0
+    },
+    
+    {
+        'role': 'Mechanical Engineer',
+        'key_skills': ['autocad', 'solidworks', 'catia', 'mechanical design', 'manufacturing', 'cad', 'thermodynamics'],
+        'patterns': ['mechanical engineer', 'design engineer', 'mechanical design engineer', 'product design engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Mechanical Design Engineer',
+        'key_skills': ['solidworks', 'catia', 'creo', 'cad', '3d modeling', 'mechanical design', 'product development'],
+        'patterns': ['mechanical design engineer', 'design engineer mechanical', 'cad design engineer'],
+        'weight': 1.0
+    },
+
+    {
+        'role': 'Manufacturing Engineer',
+        'key_skills': ['manufacturing processes', 'production planning', 'quality control', 'lean manufacturing', 'process optimization'],
+        'patterns': ['manufacturing engineer', 'production engineer', 'process engineer manufacturing'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Production Engineer',
+        'key_skills': ['production planning', 'quality control', 'manufacturing', 'operations', 'process improvement'],
+        'patterns': ['production engineer', 'production manager', 'production supervisor'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Maintenance Engineer',
+        'key_skills': ['preventive maintenance', 'troubleshooting', 'equipment maintenance', 'reliability', 'tpm'],
+        'patterns': ['maintenance engineer', 'plant maintenance engineer', 'maintenance manager'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Quality Engineer',
+        'key_skills': ['quality control', 'quality assurance', 'six sigma', 'iso', 'inspection', 'testing'],
+        'patterns': ['quality engineer', 'quality control engineer', 'qa engineer manufacturing'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Automobile Engineer',
+        'key_skills': ['automotive engineering', 'vehicle design', 'catia', 'automotive systems', 'engine design'],
+        'patterns': ['automobile engineer', 'automotive engineer', 'vehicle engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'HVAC Engineer',
+        'key_skills': ['hvac', 'air conditioning', 'ventilation', 'refrigeration', 'thermal systems'],
+        'patterns': ['hvac engineer', 'hvac design engineer', 'mechanical hvac'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Tool & Die Maker',
+        'key_skills': ['tool design', 'die making', 'cnc programming', 'machining', 'precision engineering'],
+        'patterns': ['tool and die maker', 'tool designer', 'die designer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'CNC Programmer',
+        'key_skills': ['cnc programming', 'machining', 'g-code', 'cnc operation', 'manufacturing'],
+        'patterns': ['cnc programmer', 'cnc operator', 'cnc machinist'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Welding Engineer',
+        'key_skills': ['welding', 'welding inspection', 'welding codes', 'ndt', 'fabrication'],
+        'patterns': ['welding engineer', 'welding inspector', 'welding supervisor'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Marine Engineer',
+        'key_skills': ['marine engineering', 'ship systems', 'marine machinery', 'propulsion systems'],
+        'patterns': ['marine engineer', 'ship engineer', 'naval architect'],
+        'weight': 1.0
+    },
+    
+    
+    {
+        'role': 'Hotel Manager',
+        'key_skills': ['hotel management', 'hospitality', 'guest relations', 'operations management', 'front office'],
+        'patterns': ['hotel manager', 'hospitality manager', 'general manager hotel', 'hotel operations manager'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Front Office Manager',
+        'key_skills': ['front office operations', 'guest services', 'hotel management', 'reception', 'booking'],
+        'patterns': ['front office manager', 'fom', 'reception manager'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Housekeeping Manager',
+        'key_skills': ['housekeeping', 'hotel operations', 'staff management', 'cleanliness standards'],
+        'patterns': ['housekeeping manager', 'housekeeping supervisor', 'executive housekeeper'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Food & Beverage Manager',
+        'key_skills': ['food and beverage', 'restaurant management', 'menu planning', 'hospitality', 'service'],
+        'patterns': ['food and beverage manager', 'f&b manager', 'restaurant manager'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Chef / Cook',
+        'key_skills': ['cooking', 'culinary', 'food preparation', 'menu planning', 'kitchen management'],
+        'patterns': ['chef', 'executive chef', 'head chef', 'cook', 'sous chef', 'pastry chef'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Bartender',
+        'key_skills': ['bartending', 'mixology', 'beverage service', 'customer service', 'cocktails'],
+        'patterns': ['bartender', 'mixologist', 'bar manager'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Travel Consultant',
+        'key_skills': ['travel planning', 'tour packages', 'itinerary planning', 'customer service', 'ticketing'],
+        'patterns': ['travel consultant', 'travel agent', 'tour consultant', 'travel advisor'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Tour Guide',
+        'key_skills': ['tour guiding', 'tourism', 'customer service', 'local knowledge', 'languages'],
+        'patterns': ['tour guide', 'tourist guide', 'travel guide'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Event Manager',
+        'key_skills': ['event planning', 'event management', 'coordination', 'logistics', 'vendor management'],
+        'patterns': ['event manager', 'event planner', 'event coordinator'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Cruise Ship Staff',
+        'key_skills': ['hospitality', 'customer service', 'cruise operations', 'entertainment', 'guest services'],
+        'patterns': ['cruise ship staff', 'cruise director', 'cruise attendant'],
+        'weight': 1.0
+    },
+    
+    
+    {
+        'role': 'Store Manager',
+        'key_skills': ['retail management', 'inventory management', 'sales', 'customer service', 'staff management'],
+        'patterns': ['store manager', 'retail manager', 'shop manager'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Sales Associate',
+        'key_skills': ['customer service', 'sales', 'product knowledge', 'retail', 'cash handling'],
+        'patterns': ['sales associate', 'retail associate', 'sales representative retail'],
+        'weight': 1.0
+    },
+    {
+        'role': 'E-commerce Manager',
+        'key_skills': ['e-commerce', 'online retail', 'digital marketing', 'inventory management', 'analytics'],
+        'patterns': ['e-commerce manager', 'ecommerce manager', 'online retail manager'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Merchandiser',
+        'key_skills': ['merchandising', 'product placement', 'inventory', 'visual merchandising', 'retail'],
+        'patterns': ['merchandiser', 'visual merchandiser', 'retail merchandiser'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Category Manager',
+        'key_skills': ['category management', 'product assortment', 'pricing', 'vendor management', 'analytics'],
+        'patterns': ['category manager', 'product category manager'],
+        'weight': 1.0
+    },
+    
+    
+    {
+        'role': 'Agricultural Engineer',
+        'key_skills': ['agricultural engineering', 'farm machinery', 'irrigation', 'soil science', 'crop production'],
+        'patterns': ['agricultural engineer', 'farm engineer', 'agri engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Agronomist',
+        'key_skills': ['agronomy', 'crop science', 'soil management', 'pest control', 'farming'],
+        'patterns': ['agronomist', 'crop consultant', 'agricultural scientist'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Horticulturist',
+        'key_skills': ['horticulture', 'plant science', 'gardening', 'landscaping', 'crop cultivation'],
+        'patterns': ['horticulturist', 'horticulture specialist', 'garden specialist'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Agricultural Officer',
+        'key_skills': ['agriculture', 'farm management', 'crop planning', 'extension services', 'rural development'],
+        'patterns': ['agricultural officer', 'agriculture officer', 'farm officer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Veterinarian',
+        'key_skills': ['veterinary medicine', 'animal care', 'surgery', 'diagnosis', 'animal health'],
+        'patterns': ['veterinarian', 'vet', 'veterinary doctor', 'animal doctor'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Dairy Farm Manager',
+        'key_skills': ['dairy farming', 'livestock management', 'milk production', 'animal husbandry'],
+        'patterns': ['dairy farm manager', 'dairy manager', 'livestock manager'],
+        'weight': 1.0
+    },
+    
+    
+    {
+        'role': 'Fashion Designer',
+        'key_skills': ['fashion design', 'sketching', 'pattern making', 'garment construction', 'textiles'],
+        'patterns': ['fashion designer', 'clothing designer', 'apparel designer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Textile Engineer',
+        'key_skills': ['textile engineering', 'fabric technology', 'quality control', 'textile testing'],
+        'patterns': ['textile engineer', 'textile technologist', 'fabric engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Merchandiser (Fashion)',
+        'key_skills': ['fashion merchandising', 'buying', 'trend analysis', 'product development', 'vendor management'],
+        'patterns': ['fashion merchandiser', 'apparel merchandiser', 'garment merchandiser'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Pattern Maker',
+        'key_skills': ['pattern making', 'garment construction', 'technical drawing', 'fashion design'],
+        'patterns': ['pattern maker', 'pattern cutter', 'garment technician'],
+        'weight': 1.0
+    },
+    
+    
+    {
+        'role': 'Video Editor',
+        'key_skills': ['video editing', 'adobe premiere', 'final cut pro', 'after effects', 'color grading'],
+        'patterns': ['video editor', 'film editor', 'post production editor'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Content Writer',
+        'key_skills': ['content writing', 'copywriting', 'seo writing', 'blogging', 'creative writing'],
+        'patterns': ['content writer', 'copywriter', 'writer', 'content creator'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Journalist',
+        'key_skills': ['journalism', 'reporting', 'news writing', 'interviewing', 'research'],
+        'patterns': ['journalist', 'reporter', 'news reporter', 'correspondent'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Photographer',
+        'key_skills': ['photography', 'photo editing', 'lightroom', 'photoshop', 'lighting', 'composition'],
+        'patterns': ['photographer', 'commercial photographer', 'wedding photographer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Cinematographer',
+        'key_skills': ['cinematography', 'camera operation', 'lighting', 'shot composition', 'filmmaking'],
+        'patterns': ['cinematographer', 'director of photography', 'dop', 'camera operator'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Sound Engineer',
+        'key_skills': ['audio engineering', 'sound mixing', 'recording', 'pro tools', 'sound design'],
+        'patterns': ['sound engineer', 'audio engineer', 'sound technician', 'mixing engineer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Radio Jockey (RJ)',
+        'key_skills': ['radio broadcasting', 'voice modulation', 'entertainment', 'communication', 'hosting'],
+        'patterns': ['radio jockey', 'rj', 'radio host', 'radio presenter'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Anchor / TV Presenter',
+        'key_skills': ['anchoring', 'presentation', 'communication', 'hosting', 'broadcasting'],
+        'patterns': ['anchor', 'tv anchor', 'tv presenter', 'news anchor', 'host'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Actor',
+        'key_skills': ['acting', 'performance', 'theatre', 'improvisation', 'voice modulation'],
+        'patterns': ['actor', 'actress', 'theatre artist', 'performer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Director',
+        'key_skills': ['directing', 'filmmaking', 'storytelling', 'shot composition', 'production'],
+        'patterns': ['director', 'film director', 'creative director media'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Animation Artist',
+        'key_skills': ['animation', '2d animation', '3d animation', 'maya', 'blender', 'character design'],
+        'patterns': ['animator', 'animation artist', '3d animator', '2d animator'],
+        'weight': 1.0
+    },
+    {
+        'role': 'VFX Artist',
+        'key_skills': ['vfx', 'visual effects', 'compositing', 'nuke', 'after effects', 'cg'],
+        'patterns': ['vfx artist', 'visual effects artist', 'compositing artist'],
+        'weight': 1.0
+    },
+    
+    
+    {
+        'role': 'Personal Trainer',
+        'key_skills': ['fitness training', 'exercise programs', 'nutrition', 'strength training', 'cardio'],
+        'patterns': ['personal trainer', 'fitness trainer', 'gym trainer', 'fitness coach'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Sports Coach',
+        'key_skills': ['coaching', 'sports training', 'athlete development', 'strategy', 'motivation'],
+        'patterns': ['sports coach', 'coach', 'athletic coach', 'team coach'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Yoga Instructor',
+        'key_skills': ['yoga', 'asanas', 'meditation', 'pranayama', 'wellness', 'fitness'],
+        'patterns': ['yoga instructor', 'yoga teacher', 'yoga trainer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Physiotherapist',
+        'key_skills': ['physiotherapy', 'rehabilitation', 'exercise therapy', 'sports injuries', 'manual therapy'],
+        'patterns': ['physiotherapist', 'physical therapist', 'rehab specialist'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Sports Manager',
+        'key_skills': ['sports management', 'event management', 'athlete management', 'sports marketing'],
+        'patterns': ['sports manager', 'sports administrator', 'athletic director'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Dietitian / Nutritionist',
+        'key_skills': ['nutrition', 'diet planning', 'meal planning', 'health assessment', 'weight management'],
+        'patterns': ['dietitian', 'nutritionist', 'diet consultant', 'nutrition specialist'],
+        'weight': 1.0
+    },
+    
+    {
+        'role': 'Beautician / Cosmetologist',
+        'key_skills': ['beauty treatments', 'makeup', 'skincare', 'hair styling', 'facials'],
+        'patterns': ['beautician', 'cosmetologist', 'beauty therapist', 'makeup artist'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Hair Stylist',
+        'key_skills': ['hair styling', 'hair cutting', 'hair coloring', 'salon management'],
+        'patterns': ['hair stylist', 'hairdresser', 'hairstylist', 'salon professional'],
+        'weight': 1.0
     }
             ]
         
@@ -1389,14 +3015,38 @@ class MatchingEngine:
                     'weight': 1.0
                 })
         
-        # FINAL FALLBACK: Generic Software Developer
-        if not priorities:
+        # FINAL FALLBACK
+        """if not priorities:
             priorities.append({
                 'role': 'Software Developer',
                 'priority': 1,
                 'key_skills': ['programming', 'software development', 'coding', 'problem solving'],
                 'weight': 1.0
+            }) """
+        
+
+        # FINAL FALLBACK: Use job title or generic professional
+        if not priorities:
+            job_title = jd_data.get('job_title', 'Professional')
+            generic_skills = []
+    
+            # Try to extract skills from JD
+            if primary_skills:
+                generic_skills = primary_skills[:8]
+            elif secondary_skills:
+                generic_skills = secondary_skills[:8]
+            else:
+                # Generic soft skills
+                generic_skills = ['communication', 'teamwork', 'problem solving', 'leadership', 'organization', 'time management']
+    
+            priorities.append({
+                'role': job_title,  # ✅ Use actual job title
+                'priority': 1,
+                'key_skills': generic_skills,
+                'weight': 1.0
             })
+
+
         
         return priorities
     

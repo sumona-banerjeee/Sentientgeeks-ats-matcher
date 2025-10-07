@@ -10,11 +10,19 @@
 <body>
     <div id="app">
         <header class="header">
-            <div class="container">
-                <h1 class="logo">SentientGeeks ATS</h1>
-                <p class="tagline">AI-Powered Resume Matching System</p>
-            </div>
-        </header>
+    <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1 class="logo">🎯 SentientGeeks ATS</h1>
+            <p class="tagline">AI-Powered Resume Matching System</p>
+        </div>
+        <!-- User Info & Logout Button -->
+        <div id="user-info-header" style="text-align: right; color: white;">
+            <!-- Will be populated by JavaScript -->
+        </div>
+    </div>
+</header>
+
+
 
         <main class="main-content">
             <div class="container">
@@ -389,6 +397,140 @@
         
         console.log("✅ Corrected emergency fix functions registered successfully");
     </script>
+
+    <script>
+    // Display logged-in user info
+        window.addEventListener('DOMContentLoaded', () => {
+            const currentUser = JSON.parse(localStorage.getItem('current_user') || 'null');
+            const userInfoDiv = document.getElementById('user-info');
+        
+            if (currentUser) {
+                const roleIcon = currentUser.role === 'admin' ? '👑' : '👤';
+                const roleText = current User.role === 'admin' ? 'ADMIN' : 'HR';
+            
+                userInfoDiv.innerHTML = `
+                    <div>
+                        <div><strong>${currentUser.full_name}</strong></div>
+                        <div style="font-size: 12px; opacity: 0.9;">${roleIcon} ${roleText}</div>
+                        <button onclick="logout()" style="margin-top: 6px; padding: 4px 12px; background: rgba(255,255,255,0.2); border: 1px solid white; color: white; border-radius: 4px; cursor: pointer; font-size: 12px;">Logout</button>
+                    </div>
+                    `;
+            } else {
+                userInfoDiv.innerHTML = `<a href="/login.html" style="color: white; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 4px; text-decoration: none;">Login</a>`;
+            }
+        });
+    
+        async function logout() {
+            await fetch('/api/users/logout', {
+                method: 'POST',
+                credentials: 'include'
+            });
+            localStorage.clear();
+            window.location.href = '/login.html';
+        }
+    </script>
+
+    <script>
+    // Display user info and logout button
+    window.addEventListener('DOMContentLoaded', () => {
+        displayUserInfo();
+    });
+
+    function displayUserInfo() {
+        const currentUser = JSON.parse(localStorage.getItem('current_user') || 'null');
+        const userInfoDiv = document.getElementById('user-info-header');
+        
+        if (currentUser) {
+            const roleIcon = currentUser.role === 'admin' ? '👑' : '👤';
+            const roleName = currentUser.role === 'admin' ? 'ADMIN' : 'HR';
+            const roleColor = currentUser.role === 'admin' ? '#ffd700' : '#90ee90';
+            
+            userInfoDiv.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="text-align: right;">
+                        <div style="font-weight: 600; font-size: 15px; margin-bottom: 2px;">
+                            ${currentUser.full_name}
+                        </div>
+                        <div style="font-size: 12px; opacity: 0.9; background: ${roleColor}; color: #333; padding: 2px 8px; border-radius: 10px; display: inline-block;">
+                            ${roleIcon} ${roleName}
+                        </div>
+                    </div>
+                    <button onclick="handleLogout()" style="
+                        padding: 8px 16px;
+                        background: rgba(255,255,255,0.2);
+                        border: 1px solid white;
+                        color: white;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 13px;
+                        font-weight: 500;
+                        transition: all 0.3s;
+                    " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                        Logout
+                    </button>
+                </div>
+            `;
+        } else {
+            userInfoDiv.innerHTML = `
+                <a href="/login" style="
+                    color: white;
+                    text-decoration: none;
+                    padding: 8px 16px;
+                    background: rgba(255,255,255,0.2);
+                    border-radius: 6px;
+                    font-size: 14px;
+                    font-weight: 500;
+                    transition: all 0.3s;
+                    display: inline-block;
+                " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                    Login
+                </a>
+            `;
+        }
+    }
+
+    async function handleLogout() {
+        if (!confirm('Are you sure you want to logout?')) {
+            return;
+        }
+
+        try {
+            // Call logout API
+            const response = await fetch('/api/users/logout', {
+                method: 'POST',
+                credentials: 'include'
+            });
+
+            // Clear local storage
+            localStorage.removeItem('session_token');
+            localStorage.removeItem('current_user');
+
+            // Show success message
+            if (typeof Utils !== 'undefined' && Utils.showToast) {
+                Utils.showToast('Logged out successfully!', 'success');
+            }
+
+            // Redirect to login page after a short delay
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 1000);
+
+        } catch (error) {
+            console.error('Logout error:', error);
+            
+            // Clear storage anyway
+            localStorage.removeItem('session_token');
+            localStorage.removeItem('current_user');
+            
+            // Redirect to login
+            window.location.href = '/login';
+        }
+    }
+
+    // Make logout function globally available
+    window.handleLogout = handleLogout;
+</script>
+
 
 </body>
 </html>

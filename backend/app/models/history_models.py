@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, Float
+from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, Float, ForeignKey
 from .database import Base
 from datetime import datetime
 
@@ -7,6 +7,11 @@ class MatchingHistory(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String(100), nullable=False, index=True)
+    
+    # NEW FIELDS
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=True, index=True)
+    user_name = Column(String(255)) 
+    
     job_title = Column(String(500))
     company_name = Column(String(500))
     total_resumes = Column(Integer)
@@ -16,11 +21,13 @@ class MatchingHistory(Base):
     matching_summary = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, default=datetime.utcnow)
-
+    
     def to_dict(self):
         return {
             'id': self.id,
             'session_id': self.session_id,
+            'user_id': self.user_id,
+            'user_name': self.user_name,  
             'job_title': self.job_title,
             'company_name': self.company_name,
             'total_resumes': self.total_resumes,

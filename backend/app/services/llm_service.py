@@ -200,7 +200,7 @@ class LLMService:
     
         try:
             print(f"Making Perplexity API call...")
-            response = requests.post(self.base_url, headers=self.headers, json=payload, timeout=30)
+            response = requests.post(self.base_url, headers=self.headers, json=payload, timeout=120)
         
             print(f"API Response Status: {response.status_code}")
         

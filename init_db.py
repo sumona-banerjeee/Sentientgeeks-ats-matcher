@@ -1,52 +1,70 @@
-import os
-import sys
-from sqlalchemy import create_engine
-from dotenv import load_dotenv
-from backend.app.models.history_models import MatchingHistory
+from backend.app.models.database import Base, engine, SessionLocal
+from backend.app.models.user_models import User
+from backend.app.config.user_config import UserConfig
 
-
-# Load environment variables
-load_dotenv()
-
-# Add backend to Python path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'backend'))
-
-from backend.app.models.database import Base, engine
-from backend.app.models.jd_models import JobDescription, JDStructuringSession
-from backend.app.models.resume_models import Resume, MatchingResult
-
-def initialize_database():
-    """Initialize the PostgreSQL database with tables"""
+def init_database():
+    """Initialize database with tables and users from .env"""
+    print("🔧 Initializing database...")
+    
+    # Validate environment
+    UserConfig.validate_env_config()
+    
+    # Create all tables (including users table)
+    Base.metadata.create_all(bind=engine)
+    print("✅ Database tables created!")
+    
+    # Load users from .env
+    default_users = UserConfig.get_default_users()
+    
+    if not default_users:
+        print("⚠️ No users found in .env file")
+        print("💡 Add DEFAULT_USERS to your .env file")
+        return
+    
+    db = SessionLocal()
     try:
-        print("🚀 Initializing PostgreSQL database...")
+        users_created = 0
+        users_skipped = 0
         
-        # Test connection
-        with engine.connect() as connection:
-            print("✅ Database connection successful!")
+        for user_data in default_users:
+            existing_user = db.query(User).filter(
+                User.username == user_data['username']
+            ).first()
+            
+            if existing_user:
+                print(f"ℹ️  User '{user_data['username']}' already exists - skipping")
+                users_skipped += 1
+                continue
+            
+            new_user = User(
+                username=user_data['username'],
+                email=user_data['email'],
+                full_name=user_data['full_name'],
+                role=user_data.get('role', 'hr')
+            )
+            new_user.set_password(user_data['password'])
+            
+            db.add(new_user)
+            users_created += 1
+            print(f"✅ Created user: {user_data['username']} ({user_data['role']})")
         
-        # Create all tables
-        Base.metadata.create_all(bind=engine)
-        print("✅ All database tables created successfully!")
+        db.commit()
         
-        print("\n📋 Created tables:")
-        print("- job_descriptions")
-        print("- jd_structuring_sessions") 
-        print("- resumes")
-        print("- matching_results")
-        print("- matching_history") 
-        print("\n🎉 Database initialization completed!")
-        print("Your ATS Resume Matcher is ready to use with PostgreSQL!")
+        print(f"\n📊 Summary:")
+        print(f"   • Users created: {users_created}")
+        print(f"   • Users skipped: {users_skipped}")
+        print(f"   • Total users: {len(default_users)}")
+        
+        if users_created > 0:
+            print(f"\n🔐 Credentials stored in .env file")
+            print(f"⚠️  Change passwords in production!")
         
     except Exception as e:
-        print(f"❌ Database initialization error: {e}")
-        return False
-    
-    return True
+        db.rollback()
+        print(f"❌ Error: {e}")
+        raise
+    finally:
+        db.close()
 
 if __name__ == "__main__":
-    success = initialize_database()
-    if success:
-        print("\n🏃‍♂️ You can now run your application:")
-        print("python run.py")
-    else:
-        print("\n⚠️ Please check your database configuration and try again.")
+    init_database()
