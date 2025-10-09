@@ -86,11 +86,7 @@ async function displayMatchingResults() {
         });
 
         html += `
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Updated Export & Interview Buttons -->
+            <!-- Updated Export Interview Buttons -->
             <div class="export-buttons" style="margin-top: 20px; text-align: center;">
                 <button id="generate-questions-btn" class="btn btn-success" onclick="generateInterviewQuestions(false)" style="margin-right: 10px;">
                     <i class="fas fa-question-circle"></i> Interview Questions
@@ -98,13 +94,15 @@ async function displayMatchingResults() {
                 <button class="btn btn-secondary" onclick="exportResultsAsCSV()" style="margin-right: 10px;">
                     <i class="fas fa-download"></i> Export as CSV
                 </button>
-                <button class="btn btn-info" onclick="exportResultsAsJSON()">
+                <button class="btn btn-info" onclick="exportResultsAsJSON()" style="margin-right: 10px;">
                     <i class="fas fa-download"></i> Export as JSON
                 </button>
-                 <button class="btn btn-warning" onclick="showHistory()" style="margin-right: 10px;">
+                <button class="btn btn-warning" onclick="showHistory()" style="margin-right: 10px;">
                     <i class="fas fa-history"></i> History
-                    </button>
-
+                </button>
+                <button class="btn btn-primary" onclick="startNewMatching()" style="margin-right: 10px;">
+                    <i class="fas fa-redo"></i> Start New Matching
+                </button>
             </div>
         `;
 
@@ -1237,8 +1235,11 @@ function displayCurrentMatchingResults(results, sessionId, container) {
             <button class="btn btn-info" onclick="exportResultsAsJSON()" style="margin-right: 10px;">
                 <i class="fas fa-download"></i> Export as JSON
             </button>
-            <button class="btn btn-warning" onclick="showHistory()">
+            <button class="btn btn-warning" onclick="showHistory()" style="margin-right: 10px;">
                 <i class="fas fa-history"></i> History
+            </button>
+            <button class="btn btn-primary" onclick="startNewMatching()">
+                <i class="fas fa-redo"></i> Start New Matching
             </button>
         </div>
     `;
@@ -1322,3 +1323,57 @@ async function exportHistoryResultsAsJSON(sessionId) {
         Utils.hideLoading();
     }
 }
+
+
+/**
+ * Reset the application state and start a new matching session
+ */
+async function startNewMatching() {
+    // Confirm with user before resetting
+    const confirmed = confirm(
+        'Are you sure you want to start a new matching session? This will reset the current workflow.'
+    );
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    try {
+        Utils.showLoading('Preparing new matching session...');
+        
+        // Clear current session data
+        appState.currentStep = 1;
+        appState.sessionId = null;
+        appState.jdData = null;
+        appState.matchingResults = null;
+        
+        // Clear UI elements
+        document.getElementById('jd-file').value = '';
+        document.getElementById('jd-text').value = '';
+        document.getElementById('resume-files').value = '';
+        document.getElementById('results-content').innerHTML = '';
+        document.getElementById('selected-files-list').innerHTML = '';
+        
+        // Reset buttons
+        document.getElementById('process-jd-btn').disabled = true;
+        document.getElementById('upload-resumes-btn').disabled = true;
+        document.getElementById('start-matching-btn').disabled = false;
+        
+        // Update UI to show step 1
+        appState.updateUI();
+        
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        Utils.showToast('Ready to start a new matching session!', 'success');
+        
+    } catch (error) {
+        console.error('Error starting new matching:', error);
+        Utils.showToast('Error resetting session: ' + error.message, 'error');
+    } finally {
+        Utils.hideLoading();
+    }
+}
+
+// Make function globally available
+window.startNewMatching = startNewMatching;

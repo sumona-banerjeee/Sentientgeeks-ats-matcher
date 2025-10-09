@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - SentientGeeks ATS</title>
+    <title>Login SentientGeeks ATS</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -118,7 +118,7 @@
 <body>
     <div class="login-container">
         <div class="login-header">
-            <h1>🎯 SentientGeeks ATS</h1>
+            <h1>SentientGeeks ATS</h1>
             <p>AI-Powered Resume Matching System</p>
         </div>
         
@@ -207,7 +207,7 @@
                 if (response.ok && data.status === 'success') {
                     localStorage.setItem('session_token', data.session_token);
                     localStorage.setItem('current_user', JSON.stringify(data.user));
-                    showSuccess('✅ Login successful! Redirecting...');
+                    showSuccess('Login successful! Redirecting...');
                     
                     setTimeout(() => {
                         window.location.href = '/app';
@@ -219,7 +219,7 @@
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                showError('❌ Network error. Please try again.');
+                showError('Network error. Please try again.');
                 loginBtn.disabled = false;
                 loginBtn.textContent = 'Login';
             }
