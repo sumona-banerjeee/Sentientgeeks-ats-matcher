@@ -420,141 +420,48 @@ class MatchingEngine:
     
     # SCORE 2: Enhanced Experience Matching with JD Requirements
     def _calculate_enhanced_experience_score(self, resume_data: Dict, job_priorities: List[Dict], jd_experience_required: float) -> float:
-        """
-        Calculate enhanced experience score with STRICT skill-relevance validation
-        Only counts experience in JD-required technologies
-        """
-    
+        """Calculate enhanced experience score with JD requirement matching (0-100 points)"""
+        
         experience_timeline = resume_data.get('experience_timeline', [])
         total_experience = resume_data.get('total_experience', 0)
-    
-        print(f"🏢 ENHANCED EXPERIENCE SCORING (SKILL-VALIDATED):")
+        
+        print(f"🏢 ENHANCED EXPERIENCE SCORING:")
         print(f"  📅 Total Experience: {total_experience} years")
         print(f"  📋 JD Required Experience: {jd_experience_required} years")
-    
+        print(f"  📋 Experience Timeline: {len(experience_timeline)} jobs")
+        
         # Handle fresh graduates
         if not experience_timeline or total_experience == 0:
             if jd_experience_required == 0:
                 print("  🎓 Fresh Graduate + No Experience Required = 50/100")
-                return 50.0
+                return 50.0  # Neutral score when no experience required
             else:
                 print("  🎓 Fresh Graduate but Experience Required = 10/100")
-                return 10.0
-    
-        # STEP 1: Calculate RELEVANT experience (only in JD technologies)
-        relevant_experience_years = self._calculate_skill_relevant_experience(
-            experience_timeline, job_priorities
-        )
-    
-        print(f"  ✅ RELEVANT Experience (in JD skills): {relevant_experience_years:.1f} years")
-        print(f"  ❌ IRRELEVANT Experience (ignored): {total_experience - relevant_experience_years:.1f} years")
-    
-        # STEP 2: Experience Requirement Score (40% weight)
-        # Based on RELEVANT experience only
-        requirement_score = self._calculate_skill_based_requirement_score(
-            relevant_experience_years, jd_experience_required
-        )
-    
-        # STEP 3: Relevant Experience Quality Score (40% weight)
-        quality_score = self._calculate_relevant_experience_quality(
-            experience_timeline, job_priorities, relevant_experience_years
-        )
-    
-        # STEP 4: Recent/Current Experience Bonus (20% weight)
-        recent_bonus = self._calculate_recent_experience_bonus(experience_timeline, job_priorities)
-    
-        # Final calculation
+                return 10.0  # Low score when experience is required
+        
+        # STEP 1: Experience Requirement Matching Score (40% weight)
+        experience_requirement_score = self._calculate_experience_requirement_score(total_experience, jd_experience_required)
+        
+        # STEP 2: Relevant Experience Score (40% weight)
+        relevant_experience_score = self._calculate_relevant_experience_score(experience_timeline, job_priorities)
+        
+        # STEP 3: Recent/Current Experience Bonus (20% weight)
+        recent_experience_bonus = self._calculate_recent_experience_bonus(experience_timeline, job_priorities)
+        
+        # Final experience score calculation
         final_experience_score = (
-            requirement_score * 0.4 +
-            quality_score * 0.4 +
-            recent_bonus * 0.2
+            experience_requirement_score * 0.4 +
+            relevant_experience_score * 0.4 +
+            recent_experience_bonus * 0.2
         )
-    
+        
         print(f"  📊 Experience Breakdown:")
-        print(f"    • Requirement Match: {requirement_score:.1f}/100 (based on {relevant_experience_years:.1f}y relevant)")
-        print(f"    • Quality Score: {quality_score:.1f}/100")
-        print(f"    • Recent Bonus: {recent_bonus:.1f}/100")
+        print(f"    • Requirement Match: {experience_requirement_score:.1f}/100 (40% weight)")
+        print(f"    • Relevant Experience: {relevant_experience_score:.1f}/100 (40% weight)")
+        print(f"    • Recent/Current Bonus: {recent_experience_bonus:.1f}/100 (20% weight)")
         print(f"    • Final Experience Score: {final_experience_score:.1f}/100")
-    
+        
         return min(100, max(0, final_experience_score))
-    
-
-    def _calculate_relevant_experience_quality(self, experience_timeline: List[Dict], job_priorities: List[Dict], total_relevant_years: float) -> float:
-        """
-        Calculate quality of relevant experience
-        """
-    
-        if total_relevant_years == 0:
-            return 0.0
-    
-        # Collect all required skills
-        all_required_skills = []
-        for priority in job_priorities:
-            all_required_skills.extend([skill.lower().strip() for skill in priority['key_skills']])
-    
-        quality_factors = []
-    
-        for experience in experience_timeline:
-            exp_technologies = [tech.lower().strip() for tech in experience.get('technologies_used', [])]
-            exp_duration = experience.get('duration', '')
-            years = self._extract_years_from_duration(exp_duration)
-        
-            # Count matched skills
-            matched_count = 0
-            for required_skill in all_required_skills:
-                for exp_tech in exp_technologies:
-                    if self._enhanced_technology_match(required_skill, exp_tech):
-                        matched_count += 1
-                        break
-        
-            if matched_count > 0:
-                skill_coverage = matched_count / len(all_required_skills)
-            
-                # Quality factors
-                recency_bonus = 1.0
-                if 'present' in exp_duration.lower() or 'current' in exp_duration.lower():
-                    recency_bonus = 1.3
-            
-                duration_bonus = 1.0
-                if years >= 2:
-                    duration_bonus = 1.2
-            
-                quality = skill_coverage * recency_bonus * duration_bonus * 100
-                quality_factors.append(quality)
-    
-        if quality_factors:
-            return min(100, sum(quality_factors) / len(quality_factors))
-    
-        return 0.0
-    
-
-    def _calculate_skill_based_requirement_score(self, relevant_experience: float, jd_required: float) -> float:
-        """
-        Calculate requirement score based ONLY on relevant experience
-        This prevents aircraft engineer with 3y getting high score for Python 2y requirement
-        """
-    
-        if jd_required == 0:
-            return 100.0
-    
-        if relevant_experience >= jd_required:
-            # Meets or exceeds requirement
-            if relevant_experience >= jd_required * 1.5:
-                return 100.0  # 150%+ of required
-            else:
-                # Linear scale from 85 to 100
-                excess_ratio = (relevant_experience - jd_required) / (jd_required * 0.5)
-                return 85 + (excess_ratio * 15)
-        else:
-            # Below requirement
-            ratio = relevant_experience / jd_required
-        
-            if ratio >= 0.8:  # 80-100% of requirement
-                return 60 + ((ratio - 0.8) * 125)  # 60-85 range
-            elif ratio >= 0.5:  # 50-80% of requirement
-                return 30 + ((ratio - 0.5) * 100)  # 30-60 range
-            else:  # Less than 50% of requirement
-                return ratio * 60  # 0-30 range
     
     def _calculate_experience_requirement_score(self, total_experience: float, jd_experience_required: float) -> float:
         """Calculate score based on JD experience requirement"""
@@ -782,84 +689,32 @@ class MatchingEngine:
         
         return max_bonus
     
-
-    def _calculate_skill_relevant_experience(self, experience_timeline: List[Dict], job_priorities: List[Dict]) -> float:
-        """
-        Calculate ONLY the experience in JD-required skills
-        This is the CRITICAL fix - only count relevant experience
-        """
-    
-        # Collect all required skills from all priorities
-        all_required_skills = []
-        for priority in job_priorities:
-            all_required_skills.extend([skill.lower().strip() for skill in priority['key_skills']])
-    
-        total_relevant_years = 0.0
-    
-        print(f"\n  🔍 Validating Experience Relevance:")
-    
-        for experience in experience_timeline:
-            exp_role = experience.get('role', '').lower()
-            exp_technologies = [tech.lower().strip() for tech in experience.get('technologies_used', [])]
-            exp_duration = experience.get('duration', '')
-            exp_company = experience.get('company', '')
-        
-            # Calculate actual years worked
-            years = self._extract_years_from_duration(exp_duration)
-        
-            # Check if this experience has ANY required skills
-            matched_skills = []
-            for required_skill in all_required_skills:
-                for exp_tech in exp_technologies:
-                    if self._enhanced_technology_match(required_skill, exp_tech):
-                        matched_skills.append(required_skill)
-                        break
-        
-            # Calculate relevance percentage
-            if all_required_skills:
-                relevance_percentage = len(set(matched_skills)) / len(set(all_required_skills))
-            else:
-                relevance_percentage = 0.0
-        
-            # Only count if relevance is significant (at least 10% of required skills)
-            if relevance_percentage >= 0.10:  # Must have at least 10% of required skills
-                # Calculate weighted years based on relevance
-                weighted_years = years * relevance_percentage
-                total_relevant_years += weighted_years
-            
-                print(f"    ✅ {exp_company} - {exp_role}")
-                print(f"       Duration: {years:.1f}y | Relevance: {relevance_percentage*100:.0f}% | Weighted: {weighted_years:.1f}y")
-                print(f"       Matched Skills: {', '.join(set(matched_skills))}")
-            else:
-                print(f"    ❌ {exp_company} - {exp_role}")
-                print(f"       Duration: {years:.1f}y | Relevance: {relevance_percentage*100:.0f}% | IGNORED (not relevant to JD)")
-    
-        return total_relevant_years
-
     # Helper Methods
     def _enhanced_candidate_has_skill(self, target_skill: str, resume_skills: List[str]) -> bool:
-        """
-        Enhanced skill matching with multiple strategies
-        """
+        """Enhanced skill matching"""
+        
         target_normalized = self._normalize_skill(target_skill)
-    
+        
         for resume_skill in resume_skills:
             resume_normalized = self._normalize_skill(resume_skill)
-        
+            
             # Exact match
             if target_normalized == resume_normalized:
                 return True
-        
+            
             # Synonym match
             if self._enhanced_skill_synonym_match(target_normalized, resume_normalized):
                 return True
-        
-            # Fuzzy match (FIXED - removed underscore)
+            
+            # Partial match
+            if target_normalized in resume_normalized or resume_normalized in target_normalized:
+                return True
+            
+            # Fuzzy match
             if self._fuzzy_skill_match(target_normalized, resume_normalized):
                 return True
-    
+        
         return False
-
     
     def _enhanced_technology_match(self, required_tech: str, resume_tech: str) -> bool:
         """Enhanced technology matching"""
@@ -930,8 +785,8 @@ class MatchingEngine:
         
         return False
     
-    """ def _fuzzy_skill_match(self, skill1: str, skill2: str) -> bool:
-        #Fuzzy matching for skills
+    def _fuzzy_skill_match(self, skill1: str, skill2: str) -> bool:
+        """Fuzzy matching for skills"""
         
         if len(skill1) < 3 or len(skill2) < 3:
             return False
@@ -953,120 +808,8 @@ class MatchingEngine:
             except:
                 pass
         
-        return False """
-    
-
-    def _fuzzy_skill_match(self, skill1: str, skill2: str) -> bool:
-        """Fuzzy matching for skills with proper vector checking"""
-        if len(skill1) < 3 or len(skill2) < 3:
-            return False
-    
-        # spaCy semantic similarity
-        if self.nlp:
-            try:
-                doc1 = self.nlp(skill1)
-                doc2 = self.nlp(skill2)
-            
-                # Check if vectors are valid before comparison
-                if doc1.has_vector and doc2.has_vector and doc1.vector_norm > 0 and doc2.vector_norm > 0:
-                    similarity = doc1.similarity(doc2)
-                    return similarity > 0.85  # High similarity threshold
-            except Exception as e:
-                print(f"⚠️ Similarity calculation error: {e}")
-    
         return False
     
-
-
-    def check_domain_relevance(self, resume_data: Dict, job_priorities: List[Dict]) -> tuple:
-        """
-        Check if candidate's domain is relevant to the job
-        Returns: (is_relevant: bool, confidence: float, reason: str)
-        """
-        # Extract candidate's domain from resume
-        education = resume_data.get('education', [])
-        experience_timeline = resume_data.get('experience_timeline', [])
-        skills = resume_data.get('skills', [])
-        current_role = resume_data.get('current_role', '').lower()
-    
-        # Define domain keywords
-        tech_domains = {
-        'software', 'developer', 'programming', 'web', 'frontend', 'backend', 
-        'fullstack', 'java', 'python', 'javascript', 'react', 'angular', 'node',
-        'django', 'flask', 'dotnet', 'php', 'mobile', 'app', 'cloud', 'devops',
-        'database', 'sql', 'api', 'microservices', 'engineering', 'computer science',
-        'information technology', 'bca', 'btech', 'mca', 'mtech', 'software engineer'
-        }
-    
-        non_tech_domains = {
-        'mechanical', 'civil', 'electrical', 'chemical', 'automobile', 'aerospace',
-        'aeronautical', 'aircraft', 'aviation', 'marine', 'petroleum', 'mining',
-        'metallurgy', 'textile', 'architecture', 'construction', 'structural',
-        'medicine', 'doctor', 'nursing', 'pharmacy', 'biotechnology',
-        'agriculture', 'forestry', 'veterinary', 'fashion', 'interior design'
-        }
-    
-        # Check education background
-        education_text = ' '.join([
-            str(edu.get('degree', '')).lower() + ' ' +
-            str(edu.get('major', '')).lower() + ' ' +
-            str(edu.get('field', '')).lower()
-            for edu in education
-        ])
-    
-        # Check experience roles
-        experience_text = ' '.join([
-            str(exp.get('role', '')).lower() + ' ' +
-            str(exp.get('company', '')).lower()
-            for exp in experience_timeline
-        ])
-    
-        # Combine all text
-        candidate_profile = f"{education_text} {experience_text} {current_role}".lower()
-    
-        # Count domain indicators
-        tech_score = sum(1 for keyword in tech_domains if keyword in candidate_profile)
-        non_tech_score = sum(1 for keyword in non_tech_domains if keyword in candidate_profile)
-    
-        # Check if job requires tech skills
-        job_is_tech = any(
-            keyword in str(priority.get('role', '')).lower()
-            for priority in job_priorities
-            for keyword in tech_domains
-        )
-    
-        # Decision logic
-        if non_tech_score > 0 and tech_score == 0:
-            # Clear non-tech candidate
-            return False, 0.0, f"❌ Non-tech domain detected (Found {non_tech_score} non-tech indicators, 0 tech indicators)"
-    
-        elif tech_score >= 2:
-            # Strong tech candidate
-            return True, 1.0, f"✅ Tech domain confirmed ({tech_score} tech indicators)"
-    
-        elif tech_score == 1 and non_tech_score == 0:
-            # Possibly tech candidate
-            return True, 0.7, f"⚠️ Limited tech indicators (Found {tech_score} tech indicator)"
-    
-        elif tech_score > 0 and non_tech_score > 0:
-            # Mixed background
-            if tech_score > non_tech_score:
-                return True, 0.8, f"⚠️ Mixed background, tech-leaning ({tech_score} tech vs {non_tech_score} non-tech)"
-            else:
-                return False, 0.3, f"❌ Mixed background, non-tech-leaning ({non_tech_score} non-tech vs {tech_score} tech)"
-    
-        else:
-            # Unclear background - check skills
-            tech_skills = sum(1 for skill in skills if any(tech in skill.lower() for tech in tech_domains))
-            if tech_skills >= 3:
-                return True, 0.6, f"✅ Tech skills found ({tech_skills} tech skills)"
-            else:
-                return False, 0.2, f"❌ Insufficient tech background"
-
-
-
-
-
     def _normalize_skill(self, skill: str) -> str:
         """Normalize skill for consistent matching"""
         
@@ -2888,6 +2631,7 @@ class MatchingEngine:
         'weight': 1.0
     }
             ]
+
         
         # STEP 1: Find Primary Match (becomes Priority 1)
         primary_match = None
@@ -3015,38 +2759,14 @@ class MatchingEngine:
                     'weight': 1.0
                 })
         
-        # FINAL FALLBACK
-        """if not priorities:
+        # FINAL FALLBACK: Generic Software Developer
+        if not priorities:
             priorities.append({
                 'role': 'Software Developer',
                 'priority': 1,
                 'key_skills': ['programming', 'software development', 'coding', 'problem solving'],
                 'weight': 1.0
-            }) """
-        
-
-        # FINAL FALLBACK: Use job title or generic professional
-        if not priorities:
-            job_title = jd_data.get('job_title', 'Professional')
-            generic_skills = []
-    
-            # Try to extract skills from JD
-            if primary_skills:
-                generic_skills = primary_skills[:8]
-            elif secondary_skills:
-                generic_skills = secondary_skills[:8]
-            else:
-                # Generic soft skills
-                generic_skills = ['communication', 'teamwork', 'problem solving', 'leadership', 'organization', 'time management']
-    
-            priorities.append({
-                'role': job_title,  # ✅ Use actual job title
-                'priority': 1,
-                'key_skills': generic_skills,
-                'weight': 1.0
             })
-
-
         
         return priorities
     
