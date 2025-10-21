@@ -1,33 +1,65 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
+import os
+import traceback
 
 from ..models.database import get_db
 from ..models.jd_models import JobDescription
 from ..models.resume_models import Resume, MatchingResult
 from ..services.matching_engine import MatchingEngine
 
+# Importing the Agentic AI Service
+try:
+    from ..services.agentic_service import EnhancedAgenticATSService as AgenticATSService
+    AGENTIC_AVAILABLE = True
+    print("Agentic AI Service available")
+except ImportError:
+    AGENTIC_AVAILABLE = False
+    print("Agentic AI Service not available - using traditional matching")
+
 router = APIRouter(prefix="/api/matching", tags=["Matching"])
+
+# Checking if the Agentic AI should be used
+USE_AGENTIC_AI = os.getenv("USE_AGENTIC_AI", "false").lower() == "true" and AGENTIC_AVAILABLE
+
+# Initializing the services
+matching_engine = MatchingEngine()
+if USE_AGENTIC_AI:
+    try:
+        agentic_service = AgenticATSService()
+        print("Initialized Agentic AI Service for matching")
+    except Exception as e:
+        print(f"Failed to initialize Agentic AI: {e}")
+        USE_AGENTIC_AI = False
+        agentic_service = None
+else:
+    agentic_service = None
+    print("Using traditional matching engine")
+
 
 @router.post("/start/{session_id}")
 async def start_matching(session_id: str, db: Session = Depends(get_db)):
-    """Start the matching process for all resumes in a session"""
+    """Start the matching process for all resumes in a session with Agentic AI support"""
     
+    print(f"\n{'='*60}")
     print(f"Starting matching process for session: {session_id}")
+    print(f"Agentic AI Mode: {'ENABLED' if USE_AGENTIC_AI else 'DISABLED'}")
+    print(f"{'='*60}\n")
     
-    # Get JD data
+    # Getting the data from the jd
     jd = db.query(JobDescription).filter(JobDescription.session_id == session_id).first()
     if not jd or not jd.is_approved:
         raise HTTPException(status_code=400, detail="JD not found or not approved")
     
-    # Extract job title safely
+    # Extracting the job title safely
     job_title = "Unknown Job"
     if jd.structured_data and isinstance(jd.structured_data, dict):
         job_title = jd.structured_data.get('job_title', jd.structured_data.get('title', 'Unknown Job'))
     
     print(f"Found approved JD: {job_title}")
     
-    # Get all resumes for this session
+    # Getting all resumes for this session
     resumes = db.query(Resume).filter(Resume.session_id == session_id).all()
     if not resumes:
         raise HTTPException(
@@ -35,87 +67,114 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
             detail="No resumes found for this session. Please upload resumes first."
         )
     
-    print(f"Found {len(resumes)} resumes to process")
+    print(f"Found {len(resumes)} resumes to process\n")
     
-    # Clear any existing results for this session
+    # Clearing any existing results for this session
     db.query(MatchingResult).filter(MatchingResult.session_id == session_id).delete()
     db.commit()
     
-    # Initialize matching engine
-    matching_engine = MatchingEngine()
-    
-    # Store results
+    # Storing the respective results
     matching_results = []
     
     for i, resume in enumerate(resumes):
         try:
+            print(f"\n{'─'*60}")
             print(f"Processing resume {i+1}/{len(resumes)}: {resume.filename}")
+            print(f"{'─'*60}")
             
-            # Ensure valid structured data
+            # Ensuring the valid structured data
             jd_data = jd.structured_data if jd.structured_data else {}
             resume_data = resume.structured_data if resume.structured_data else {}
             skills_weightage = jd.skills_weightage if jd.skills_weightage else {}
             
-            print(f"JD data keys: {list(jd_data.keys()) if jd_data else 'None'}")
-            print(f"Resume data keys: {list(resume_data.keys()) if resume_data else 'None'}")
-            print(f"Skills weightage: {len(skills_weightage)} skills" if skills_weightage else "📊 No skills weightage")
+            print(f"📊 JD data keys: {list(jd_data.keys()) if jd_data else 'None'}")
+            print(f"📊 Resume data keys: {list(resume_data.keys()) if resume_data else 'None'}")
             
-            # Calculate ATS score
-            ats_score = matching_engine.calculate_ats_score(
-                jd_data,
-                resume_data,
-                skills_weightage
-            )
+            # Initializing the scores
+            overall_score = 0
+            skills_score = 0
+            experience_score = 0
+            detailed_analysis = {}
             
-            overall_score = ats_score.get('overall_score', 0)
-            
-            # Parse JD experience requirement
-            jd_exp_required = 0
-            if jd_data.get('experience_required'):
+            if USE_AGENTIC_AI and agentic_service:
                 try:
-                    jd_exp_required = matching_engine._parse_experience_years(str(jd_data['experience_required']))
-                except:
-                    jd_exp_required = 0
-            
-            # Calculate individual skill and experience scores
-            try:
-                # FIX: Use the correct method name
-                job_priorities = matching_engine._extract_job_priorities(jd_data, None)
+                    print("🤖 Using Agentic AI for comprehensive scoring...")
+                    
+                    # Using agentic AI to match and score
+                    agentic_result = await agentic_service.match_and_score(
+                        resume_data=resume_data,
+                        jd_data=jd_data
+                    )
+                    
+                    print(f"Agentic AI Result: {agentic_result}")
+                    
+                    # Extracting the scores from agentic result
+                    overall_score = float(agentic_result.get('overall_score', 0))
+                    skills_score = float(agentic_result.get('skill_match_score', 0))
+                    experience_score = float(agentic_result.get('experience_match_score', 0))
+                    detailed_analysis = agentic_result.get('detailed_analysis', {})
+                    
+                    # Adding agentic-specific data to analysis
+                    detailed_analysis['scoring_method'] = 'Agentic AI'
+                    detailed_analysis['recommendation'] = agentic_result.get('recommendation', 'Unknown')
+                    detailed_analysis['matched_skills'] = agentic_result.get('matched_skills', [])
+                    detailed_analysis['missing_skills'] = agentic_result.get('missing_skills', [])
+                    
+                    print(f"Agentic Scores - Overall: {overall_score}%, Skills: {skills_score}%, Experience: {experience_score}%")
+                    
+                except Exception as agentic_error:
+                    print(f"Agentic AI failed: {str(agentic_error)}")
+                    print(f"Falling back to traditional matching engine...")
+                    
+                    # Fallback to traditional matching
+                    ats_score = matching_engine.calculate_ats_score(
+                        jd_data,
+                        resume_data,
+                        skills_weightage
+                    )
+                    
+                    overall_score = ats_score.get('overall_score', 0)
+                    detailed_analysis = ats_score.get('detailed_analysis', {})
+                    detailed_analysis['scoring_method'] = 'Traditional (Agentic Fallback)'
+                    
+                    # Calculating the individual scores using traditional method
+                    skills_score, experience_score = _calculate_traditional_scores(
+                        jd_data, resume_data, skills_weightage, ats_score
+                    )
+                    
+            else:
                 
-                # Calculate individual scores using matching engine methods
-                skills_score = matching_engine._calculate_complete_skills_score(
-                    resume_data, job_priorities, skills_weightage
+                print("Using traditional matching engine...")
+                
+                # Calculating ATS score using traditional method
+                ats_score = matching_engine.calculate_ats_score(
+                    jd_data,
+                    resume_data,
+                    skills_weightage
                 )
-                experience_score = matching_engine._calculate_enhanced_experience_score(
-                    resume_data, job_priorities, jd_exp_required
+                
+                overall_score = ats_score.get('overall_score', 0)
+                detailed_analysis = ats_score.get('detailed_analysis', {})
+                detailed_analysis['scoring_method'] = 'Traditional'
+                
+                # Calculating individual scores
+                skills_score, experience_score = _calculate_traditional_scores(
+                    jd_data, resume_data, skills_weightage, ats_score
                 )
-                
-                print(f"Individual scores calculated - Skills: {skills_score}%, Experience: {experience_score}%")
-                
-            except Exception as score_error:
-                print(f"Error calculating individual scores: {score_error}")
-                # Fallback: Use scores from ats_score if available
-                skills_score = ats_score.get('skill_match_score', 0)
-                experience_score = ats_score.get('experience_score', 0)
-                
-                # If still zero, calculate reasonable estimates
-                if skills_score == 0 and experience_score == 0:
-                    skills_score = min(100, max(0, overall_score + (len(resume_data.get('skills', [])) * 2)))
-                    experience_score = min(100, max(0, overall_score - 10 + (resume_data.get('total_experience', 0) * 5)))
-                
-                print(f"Using fallback scores - Skills: {skills_score}%, Experience: {experience_score}%")
             
-            print(f"Final scores - Overall: {overall_score}%, Skills: {skills_score}%, Experience: {experience_score}%")
             
-            # Save result with proper individual scores
+            # Saving the result in the database
+            print(f"Saving scores - Overall: {overall_score}%, Skills: {skills_score}%, Experience: {experience_score}%")
+            
+            # Saving result with proper individual scores
             matching_result = MatchingResult(
                 session_id=session_id,
                 jd_id=jd.id,
                 resume_id=resume.id,
-                overall_score=overall_score,
-                skill_match_score=skills_score, 
-                experience_score=experience_score,  
-                detailed_analysis=ats_score.get('detailed_analysis', {}),
+                overall_score=round(overall_score, 2),
+                skill_match_score=round(skills_score, 2), 
+                experience_score=round(experience_score, 2),  
+                detailed_analysis=detailed_analysis,
                 rank_position=0  # temporary, updated later
             )
             db.add(matching_result)
@@ -126,18 +185,17 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
                 "filename": resume.filename,
                 "candidate_name": resume_data.get('name', 'Unknown') if resume_data else 'Unknown',
                 "ats_score": {
-                    "overall_score": overall_score,
-                    "skill_match_score": skills_score,
-                    "experience_score": experience_score,
-                    "detailed_analysis": ats_score.get('detailed_analysis', {})
+                    "overall_score": round(overall_score, 2),
+                    "skill_match_score": round(skills_score, 2),
+                    "experience_score": round(experience_score, 2),
+                    "detailed_analysis": detailed_analysis
                 }
             })
             
-            print(f"✅ Successfully processed: {resume.filename} with scores: Overall={overall_score}%, Skills={skills_score}%, Experience={experience_score}%")
+            print(f"Successfully processed: {resume.filename}")
         
         except Exception as e:
-            print(f"❌ Error processing {resume.filename}: {str(e)}")
-            import traceback
+            print(f"Error processing {resume.filename}: {str(e)}")
             traceback.print_exc()
             
             matching_results.append({
@@ -146,11 +204,15 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
                 "error": str(e)
             })
     
-    # Rank resumes by overall score (descending)
+    # RANKING RESUMES BY OVERALL SCORE
+    print(f"\n{'='*60}")
+    print("Ranking candidates...")
+    print(f"{'='*60}\n")
+    
     successful_matches = [r for r in matching_results if 'ats_score' in r]
     successful_matches.sort(key=lambda x: x['ats_score']['overall_score'], reverse=True)
     
-    # Update rank positions in DB (starting from 1)
+    # Updating rank positions in DB starting from 1.
     for rank, result in enumerate(successful_matches, 1):
         matching_result = db.query(MatchingResult).filter(
             MatchingResult.session_id == session_id,
@@ -158,14 +220,16 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
         ).first()
         if matching_result:
             matching_result.rank_position = rank
-            print(f"🏆 Ranked {result['filename']} as #{rank} with overall score {result['ats_score']['overall_score']}%")
+            scoring_method = matching_result.detailed_analysis.get('scoring_method', 'Unknown')
+            print(f"Rank #{rank}: {result['filename']} - Score: {result['ats_score']['overall_score']}% [{scoring_method}]")
     
-    # Commit all changes
+    # Committing all changes
     try:
         db.commit()
-        print(f"✅ Matching completed: {len(successful_matches)} successful matches")
+        print(f"\nMatching completed: {len(successful_matches)} successful matches")
+        print(f"{'='*60}\n")
     except Exception as e:
-        print(f"❌ Error saving results: {str(e)}")
+        print(f"Error saving results: {str(e)}")
         db.rollback()
         raise HTTPException(status_code=500, detail="Error saving matching results")
     
@@ -174,8 +238,10 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
         "total_resumes": len(resumes),
         "successfully_matched": len(successful_matches),
         "ranking": successful_matches,
+        "agentic_ai_used": USE_AGENTIC_AI,
         "status": "completed"
     }
+
 
 @router.get("/results/{session_id}")
 async def get_matching_results(session_id: str, db: Session = Depends(get_db)):
@@ -183,7 +249,7 @@ async def get_matching_results(session_id: str, db: Session = Depends(get_db)):
     
     print(f"Fetching matching results for session: {session_id}")
     
-    # First check if resumes exist for this session
+    # Atfirst it will check if resumes exist for this session
     resumes = db.query(Resume).filter(Resume.session_id == session_id).all()
     if not resumes:
         print(f"No resumes found for session: {session_id}")
@@ -194,7 +260,7 @@ async def get_matching_results(session_id: str, db: Session = Depends(get_db)):
     
     print(f"Found {len(resumes)} resumes for session {session_id}")
     
-    # Check if matching results exist - ORDER BY overall_score DESC for proper ranking
+    # Checking if matching results exist ORDER BY overall score DESC for proper ranking
     results = db.query(MatchingResult).filter(
         MatchingResult.session_id == session_id
     ).order_by(MatchingResult.overall_score.desc()).all()
@@ -208,7 +274,7 @@ async def get_matching_results(session_id: str, db: Session = Depends(get_db)):
             detail=f"No matching results found. Please run the matching process first for the {len(resumes)} uploaded resumes."
         )
     
-    # Build detailed results with PROPER SCORING
+    # Building detailed results with PROPER SCORING
     detailed_results = []
     for rank, result in enumerate(results, 1):
         resume = db.query(Resume).filter(Resume.id == result.resume_id).first()
@@ -216,9 +282,12 @@ async def get_matching_results(session_id: str, db: Session = Depends(get_db)):
         if resume:
             resume_data = resume.structured_data if resume.structured_data else {}
             
-            # Ensure scores are properly formatted and not null/zero
+            # Ensuring scores are properly formatted and not null
             skill_score = result.skill_match_score if result.skill_match_score is not None else 0
             exp_score = result.experience_score if result.experience_score is not None else 0
+            
+            # Getting scoring method from detailed analysis
+            scoring_method = result.detailed_analysis.get('scoring_method', 'Unknown') if result.detailed_analysis else 'Unknown'
             
             detailed_results.append({
                 "rank": rank,
@@ -229,21 +298,24 @@ async def get_matching_results(session_id: str, db: Session = Depends(get_db)):
                 "skill_match_score": round(skill_score, 2),  
                 "experience_score": round(exp_score, 2),     
                 "detailed_analysis": result.detailed_analysis or {},
-                "skills_found": resume_data.get('skills', [])
+                "skills_found": resume_data.get('skills', []),
+                "scoring_method": scoring_method
             })
     
-    print(f"✅ Returning {len(detailed_results)} detailed results, ranked by score")
+    print(f"Returning {len(detailed_results)} detailed results, ranked by score\n")
     
     return {
         "session_id": session_id,
         "total_results": len(detailed_results),
         "results": detailed_results,
+        "agentic_ai_used": USE_AGENTIC_AI,
         "status": "success"
     }
 
+
 @router.get("/detailed/{session_id}/{resume_id}")
 async def get_detailed_analysis(session_id: str, resume_id: int, db: Session = Depends(get_db)):
-    """Get detailed analysis for a specific resume"""
+    #Getting detailed analysis for a specific resume
     
     print(f"Fetching detailed analysis for resume {resume_id} in session {session_id}")
     
@@ -261,11 +333,11 @@ async def get_detailed_analysis(session_id: str, resume_id: int, db: Session = D
     if not resume or not jd:
         raise HTTPException(status_code=404, detail="Resume or JD not found")
     
-    # Extract detailed personal information
+    # Extracting detailed personal information
     resume_data = resume.structured_data or {}
     jd_data = jd.structured_data or {}
     
-    # Extract contact information
+    # Extracting contact information
     personal_info = {
         "name": resume_data.get('name', 'Unknown'),
         "email": resume_data.get('email', 'Not provided'),
@@ -276,7 +348,7 @@ async def get_detailed_analysis(session_id: str, resume_id: int, db: Session = D
         "location": resume_data.get('location', 'Not provided')
     }
     
-    # Extract professional information
+    # Extracting professional information
     professional_info = {
         "total_experience": resume_data.get('total_experience', 0),
         "current_role": resume_data.get('current_role', 'Not specified'),
@@ -290,6 +362,19 @@ async def get_detailed_analysis(session_id: str, resume_id: int, db: Session = D
     detailed_analysis = result.detailed_analysis or {}
     skill_score = result.skill_match_score if result.skill_match_score is not None else 0
     exp_score = result.experience_score if result.experience_score is not None else 0
+    scoring_method = detailed_analysis.get('scoring_method', 'Unknown')
+    
+    # Agentic AI specific fields (if available)
+    agentic_insights = {}
+    if scoring_method == 'Agentic AI':
+        agentic_insights = {
+            "recommendation": detailed_analysis.get('recommendation', 'Unknown'),
+            "matched_skills": detailed_analysis.get('matched_skills', []),
+            "missing_skills": detailed_analysis.get('missing_skills', []),
+            "strengths": detailed_analysis.get('strengths', []),
+            "weaknesses": detailed_analysis.get('weaknesses', []),
+            "key_highlights": detailed_analysis.get('key_highlights', [])
+        }
     
     return {
         "resume_info": {
@@ -309,7 +394,60 @@ async def get_detailed_analysis(session_id: str, resume_id: int, db: Session = D
             "rank_position": result.rank_position,
             "overall_score": round(result.overall_score, 2),
             "skill_match_score": round(skill_score, 2),     
-            "experience_score": round(exp_score, 2),      
-            "detailed_analysis": detailed_analysis
+            "experience_score": round(exp_score, 2),
+            "detailed_analysis": detailed_analysis,
+            "scoring_method": scoring_method,
+            "agentic_insights": agentic_insights if agentic_insights else None
         }
     }
+
+
+# HELPER FUNCTION FOR TRADITIONAL SCORING
+
+def _calculate_traditional_scores(
+    jd_data: dict, 
+    resume_data: dict, 
+    skills_weightage: dict, 
+    ats_score: dict
+) -> tuple[float, float]:
+    
+    #Calculating individual skill and experience scores using traditional matching engine
+
+    try:
+        # Parsing JD experience requirement
+        jd_exp_required = 0
+        if jd_data.get('experience_required'):
+            try:
+                jd_exp_required = matching_engine._parse_experience_years(str(jd_data['experience_required']))
+            except:
+                jd_exp_required = 0
+        
+        # Extracting job priorities
+        job_priorities = matching_engine._extract_job_priorities(jd_data, None)
+        
+        # Calculating individual scores using matching engine methods
+        skills_score = matching_engine._calculate_complete_skills_score(
+            resume_data, job_priorities, skills_weightage
+        )
+        experience_score = matching_engine._calculate_enhanced_experience_score(
+            resume_data, job_priorities, jd_exp_required
+        )
+        
+        print(f"Traditional scores calculated - Skills: {skills_score}%, Experience: {experience_score}%")
+        
+    except Exception as score_error:
+        print(f"Error calculating individual scores: {score_error}")
+        
+        # It is a Fallback that Use scores from ats_score if available
+        skills_score = ats_score.get('skill_match_score', 0)
+        experience_score = ats_score.get('experience_score', 0)
+        
+        # If still zero, calculate reasonable estimates
+        if skills_score == 0 and experience_score == 0:
+            overall = ats_score.get('overall_score', 0)
+            skills_score = min(100, max(0, overall + (len(resume_data.get('skills', [])) * 2)))
+            experience_score = min(100, max(0, overall - 10 + (resume_data.get('total_experience', 0) * 5)))
+        
+        print(f"Using fallback scores - Skills: {skills_score}%, Experience: {experience_score}%")
+    
+    return (skills_score, experience_score)

@@ -26,3 +26,4 @@ class JDStructuringSession(Base):
     user_feedback = Column(Text)
     is_completed = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+

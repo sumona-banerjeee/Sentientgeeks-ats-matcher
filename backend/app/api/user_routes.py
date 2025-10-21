@@ -14,7 +14,7 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
-# In-memory session storage
+# In memory session storage
 active_sessions = {}
 
 def get_session_config():
@@ -32,7 +32,7 @@ async def login_user(login_data: UserLogin, response: Response, db: Session = De
         if not user.is_active:
             raise HTTPException(status_code=403, detail="User account is inactive")
         
-        # Update last login
+        # Updating the last login
         user.last_login = datetime.utcnow()
         db.commit()
         
@@ -55,7 +55,7 @@ async def login_user(login_data: UserLogin, response: Response, db: Session = De
             samesite='lax'
         )
         
-        print(f"✅ User '{user.username}' ({user.role}) logged in successfully")
+        print(f"User '{user.username}' ({user.role}) logged in successfully")
         
         return {
             "status": "success",
@@ -67,17 +67,17 @@ async def login_user(login_data: UserLogin, response: Response, db: Session = De
     except HTTPException as e:
         raise e
     except Exception as e:
-        print(f"❌ Login error: {e}")
+        print(f"Login error: {e}")
         raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 @router.post("/logout")
 async def logout_user(session_token: Optional[str] = Cookie(None), response: Response = None):
-    """Logout user"""
+    #Getting the information for the logout session
     try:
         if session_token and session_token in active_sessions:
             username = active_sessions[session_token].get('username', 'unknown')
             del active_sessions[session_token]
-            print(f"✅ User '{username}' logged out")
+            print(f"User '{username}' logged out")
         
         if response:
             response.delete_cookie("session_token")
@@ -89,7 +89,7 @@ async def logout_user(session_token: Optional[str] = Cookie(None), response: Res
 
 @router.get("/current")
 async def get_current_user(session_token: Optional[str] = Cookie(None), db: Session = Depends(get_db)):
-    """Get current logged-in user"""
+    # Getting the current login user
     try:
         if not session_token or session_token not in active_sessions:
             raise HTTPException(status_code=401, detail="Not authenticated")
@@ -117,7 +117,7 @@ async def get_current_user(session_token: Optional[str] = Cookie(None), db: Sess
 
 @router.get("/validate")
 async def validate_session(session_token: Optional[str] = Cookie(None)):
-    """Validate session"""
+    #validating session
     if not session_token or session_token not in active_sessions:
         return {"status": "invalid", "authenticated": False}
     
@@ -135,7 +135,7 @@ async def validate_session(session_token: Optional[str] = Cookie(None)):
     }
 
 def get_current_user_from_session(session_token: Optional[str], db: Session) -> Optional[User]:
-    """Helper function to get current user"""
+    #Helper function to get current user
     if not session_token or session_token not in active_sessions:
         return None
     

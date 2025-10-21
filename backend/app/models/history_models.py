@@ -8,7 +8,7 @@ class MatchingHistory(Base):
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String(100), nullable=False, index=True)
     
-    # NEW FIELDS
+    
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True, index=True)
     user_name = Column(String(255)) 
     

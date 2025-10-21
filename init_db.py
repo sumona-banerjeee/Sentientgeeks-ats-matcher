@@ -3,22 +3,22 @@ from backend.app.models.user_models import User
 from backend.app.config.user_config import UserConfig
 
 def init_database():
-    """Initialize database with tables and users from .env"""
-    print("🔧 Initializing database...")
+    # Initializing database with tables and users from .env
+    print("Initializing database...")
     
-    # Validate environment
+    # Validating environment
     UserConfig.validate_env_config()
     
-    # Create all tables (including users table)
+    # Create all tables
     Base.metadata.create_all(bind=engine)
-    print("✅ Database tables created!")
+    print("Database tables created!")
     
     # Load users from .env
     default_users = UserConfig.get_default_users()
     
     if not default_users:
-        print("⚠️ No users found in .env file")
-        print("💡 Add DEFAULT_USERS to your .env file")
+        print("No users found in .env file")
+        print("Add DEFAULT_USERS to your .env file")
         return
     
     db = SessionLocal()
@@ -32,7 +32,7 @@ def init_database():
             ).first()
             
             if existing_user:
-                print(f"ℹ️  User '{user_data['username']}' already exists - skipping")
+                print(f"User '{user_data['username']}' already exists - skipping")
                 users_skipped += 1
                 continue
             
@@ -46,22 +46,22 @@ def init_database():
             
             db.add(new_user)
             users_created += 1
-            print(f"✅ Created user: {user_data['username']} ({user_data['role']})")
+            print(f"Created user: {user_data['username']} ({user_data['role']})")
         
         db.commit()
         
-        print(f"\n📊 Summary:")
+        print(f"\nSummary:")
         print(f"   • Users created: {users_created}")
         print(f"   • Users skipped: {users_skipped}")
         print(f"   • Total users: {len(default_users)}")
         
         if users_created > 0:
-            print(f"\n🔐 Credentials stored in .env file")
-            print(f"⚠️  Change passwords in production!")
+            print(f"\n Credentials stored in .env file")
+            print(f"Change passwords in production!")
         
     except Exception as e:
         db.rollback()
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         raise
     finally:
         db.close()

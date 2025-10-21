@@ -18,15 +18,28 @@ async def upload_resumes(
     files: List[UploadFile] = File(...),
     db: Session = Depends(get_db)
 ):
-    """Upload and process multiple resumes"""
-    
     processed_resumes = []
+    skipped_duplicates = []
     pdf_processor = PDFProcessor()
     llm_service = LLMService()
     
     for file in files:
         try:
-            # Save file
+            # CHECK FOR DUPLICATES BY FILENAME
+            existing_resume = db.query(Resume).filter(
+                Resume.session_id == session_id,
+                Resume.filename == file.filename
+            ).first()
+            
+            if existing_resume:
+                print(f"DUPLICATE DETECTED: {file.filename} - SKIPPING")
+                skipped_duplicates.append({
+                    "filename": file.filename,
+                    "reason": "Already uploaded in this session"
+                })
+                continue  # SKIP THIS FILE
+            
+            # Rest of your code...
             file_path = f"./data/uploads/resumes/{session_id}_{file.filename}"
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             
@@ -34,13 +47,20 @@ async def upload_resumes(
                 content = await file.read()
                 f.write(content)
             
-            # Extract text
             resume_text = pdf_processor.extract_text_from_pdf(file_path)
-            
-            # Extract structured information
             structured_data = await llm_service.extract_resume_information(resume_text)
             
-            # Create resume record
+            # Normalize skills to array
+            if 'skills' in structured_data:
+                if isinstance(structured_data['skills'], dict):
+                    structured_data['skills'] = list(structured_data['skills'].values())
+                elif isinstance(structured_data['skills'], str):
+                    structured_data['skills'] = [s.strip() for s in structured_data['skills'].split(',')]
+                elif not isinstance(structured_data['skills'], list):
+                    structured_data['skills'] = []
+            else:
+                structured_data['skills'] = []
+            
             resume = Resume(
                 filename=file.filename,
                 file_path=file_path,
@@ -63,6 +83,7 @@ async def upload_resumes(
             })
             
         except Exception as e:
+            print(f"Error processing {file.filename}: {str(e)}")
             processed_resumes.append({
                 "filename": file.filename,
                 "processing_status": "failed",
@@ -73,6 +94,8 @@ async def upload_resumes(
         "session_id": session_id,
         "total_uploaded": len(files),
         "successfully_processed": len([r for r in processed_resumes if r.get("processing_status") == "success"]),
+        "skipped_count": len(skipped_duplicates),
+        "skipped_files": skipped_duplicates,
         "resumes": processed_resumes
     }
 

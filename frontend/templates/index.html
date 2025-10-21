@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -10,19 +10,17 @@
 <body>
     <div id="app">
         <header class="header">
-    <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-            <h1 class="logo">🎯 SentientGeeks ATS</h1>
-            <p class="tagline">AI-Powered Resume Matching System</p>
-        </div>
-        <!-- User Info & Logout Button -->
-        <div id="user-info-header" style="text-align: right; color: white;">
-            <!-- Will be populated by JavaScript -->
-        </div>
-    </div>
-</header>
-
-
+            <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1 class="logo">SentientGeeks ATS</h1>
+                    <p class="tagline">AI-Powered Resume Matching System</p>
+                </div>
+                <!-- User Info & Logout Button -->
+                <div id="user-info-header" style="text-align: right; color: white;">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+        </header>
 
         <main class="main-content">
             <div class="container">
@@ -38,7 +36,7 @@
                                         <div class="upload-option">
                                             <input type="file" id="jd-file" accept=".pdf" style="display: none;">
                                             <button type="button" class="btn btn-primary" onclick="document.getElementById('jd-file').click()">
-                                                📄 Upload JD File (PDF)
+                                                Upload JD File (PDF)
                                             </button>
                                         </div>
                                         <div class="or-divider">OR</div>
@@ -79,8 +77,8 @@
                                     <textarea id="structure-feedback" placeholder="Enter feedback for changes (optional)..." rows="3"></textarea>
                                 </div>
                                 <div class="action-buttons">
-                                    <button id="approve-structure-btn" class="btn btn-success">✓ Approve Structure</button>
-                                    <button id="request-changes-btn" class="btn btn-warning">⚠ Request Changes</button>
+                                    <button id="approve-structure-btn" class="btn btn-success">Approve Structure</button>
+                                    <button id="request-changes-btn" class="btn btn-warning">Request Changes</button>
                                 </div>
                             </div>
                         </div>
@@ -107,11 +105,24 @@
                             <input type="file" id="resume-files" multiple accept=".pdf" style="display: none;">
                             <div class="upload-info">
                                 <button type="button" class="btn btn-primary" onclick="document.getElementById('resume-files').click()">
-                                    📁 Select Resume Files (PDF)
+                                    Select Resume Files
                                 </button>
                                 <p class="upload-note">You can select multiple files at once (up to 50 resumes)</p>
                             </div>
                             <div id="selected-files-list"></div>
+                            
+                            <!-- ADDED: Upload Status Container -->
+                            <div id="upload-status" style="display: none; margin-top: 20px;">
+                                <div id="upload-progress" style="background: #f0f0f0; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                                    <!-- Progress information will be inserted here by JavaScript -->
+                                </div>
+                            </div>
+                            
+                            <!-- ADDED: Resumes List Container -->
+                            <div id="resumes-list" style="margin-top: 20px;">
+                                <!-- Resume results will appear here after upload -->
+                            </div>
+                            
                             <button id="upload-resumes-btn" class="btn btn-secondary" disabled>Upload & Process Resumes</button>
                         </div>
                     </div>
@@ -122,7 +133,7 @@
                     <div class="card">
                         <h2>Step 5: ATS Matching Results</h2>
                         <div id="matching-controls">
-                            <button id="start-matching-btn" class="btn btn-success">🚀 Start ATS Matching</button>
+                            <button id="start-matching-btn" class="btn btn-success">Start ATS Matching</button>
                         </div>
                         <div id="results-content"></div>
                     </div>
@@ -146,13 +157,13 @@
     <script src="static/js/matcher.js?v=3.0"></script>
     <script src="static/js/history-sidebar.js"></script>
 
-        <!-- CORRECTED EMERGENCY FIX FOR VIEW DETAILS MODAL -->
+    <!-- 🔥 CORRECTED CANDIDATE DETAILS MODAL -->
     <script>
-        console.log("✅ CORRECTED EMERGENCY FIX LOADED");
+        console.log("🔥 ENHANCED CANDIDATE MODAL LOADED");
         
         // Override the problematic function with bulletproof version
         function showCandidateDetails(sessionId, resumeId) {
-            console.log("🔧 EMERGENCY FIX: showCandidateDetails called with", sessionId, resumeId);
+            console.log("📊 showCandidateDetails called with", sessionId, resumeId);
             
             if (typeof Utils !== 'undefined' && Utils.showLoading) {
                 Utils.showLoading("Loading candidate details...");
@@ -171,14 +182,17 @@
                     modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 9999; font-family: Arial, sans-serif;';
                     modal.className = 'emergency-candidate-modal';
                     
-                    // ✅ CORRECTED: Use proper underscore naming from API
+                    // 🔥 CORRECTED: Access nested structure properly
                     const resumeInfo = data?.resume_info || {};
-                    const personalInfo = resumeInfo?.personal_info || {};
-                    const professionalInfo = resumeInfo?.professional_info || {};
-                    const matchingAnalysis = data?.matching_analysis || {};
-                    const jdInfo = data?.jd_info || {};
+                    const personalInfo = resumeInfo?.personal_info || resumeInfo?.personalinfo || {};
+                    const professionalInfo = resumeInfo?.professional_info || resumeInfo?.professionalinfo || {};
+                    const matchingAnalysis = data?.matching_analysis || data?.matchinganalysis || {};
+                    const jdInfo = data?.jd_info || data?.jdinfo || {};
                     
-                    // Extract information with fallbacks
+                    console.log("📋 Extracted personalInfo:", personalInfo);
+                    console.log("💼 Extracted professionalInfo:", professionalInfo);
+                    
+                    // Extract information with fallbacks and multiple key attempts
                     const name = personalInfo.name || resumeInfo.filename?.replace('.pdf', '').replace(/_/g, ' ') || 'Unknown Candidate';
                     const email = personalInfo.email || 'Not provided';
                     const phone = personalInfo.phone || 'Not provided';
@@ -186,24 +200,34 @@
                     const github = personalInfo.github || 'Not provided';
                     const portfolio = personalInfo.portfolio || 'Not provided';
                     const location = personalInfo.location || 'Not provided';
-                    const currentRole = professionalInfo.current_role || 'Not specified';
-                    const experience = professionalInfo.total_experience || 0;
+                    
+                    const currentRole = professionalInfo.current_role || professionalInfo.currentrole || professionalInfo.currentRole || 'Not specified';
+                    const experience = professionalInfo.total_experience || professionalInfo.totalexperience || professionalInfo.totalExperience || 0;
                     const skills = professionalInfo.skills || [];
-                    const education = professionalInfo.education || [];
-                    const certifications = professionalInfo.certifications || [];
-                    const experienceTimeline = professionalInfo.experience_timeline || [];
-                    const overallScore = matchingAnalysis.overall_score || 0;
-                    const skillScore = matchingAnalysis.skill_match_score || 0;
-                    const experienceScore = matchingAnalysis.experience_score || 0;
-                    const rank = matchingAnalysis.rank || matchingAnalysis.rank_position || 'N/A';
+                    
+                    // 🔥 FIXED: Multiple fallback attempts for education and certifications
+                    const education = professionalInfo.education || resumeInfo.education || [];
+                    const certifications = professionalInfo.certifications || resumeInfo.certifications || [];
+                    
+                    const experienceTimeline = professionalInfo.experience_timeline || professionalInfo.experiencetimeline || professionalInfo.experienceTimeline || [];
+                    
+                    const overallScore = matchingAnalysis.overall_score || matchingAnalysis.overallscore || matchingAnalysis.overallScore || 0;
+                    const skillScore = matchingAnalysis.skill_match_score || matchingAnalysis.skillmatchscore || matchingAnalysis.skillMatchScore || 0;
+                    const experienceScore = matchingAnalysis.experience_score || matchingAnalysis.experiencescore || matchingAnalysis.experienceScore || 0;
+                    const rank = matchingAnalysis.rank || matchingAnalysis.rank_position || matchingAnalysis.rankposition || 'N/A';
                     
                     // JD Information
-                    const jobTitle = jdInfo.job_title || 'Unknown Position';
+                    const jobTitle = jdInfo.job_title || jdInfo.jobtitle || jdInfo.jobTitle || 'Unknown Position';
                     const company = jdInfo.company || 'Unknown Company';
-                    const requiredSkills = jdInfo.required_skills || [];
-                    const experienceRequired = jdInfo.experience_required || 'Not specified';
+                    const requiredSkills = jdInfo.required_skills || jdInfo.requiredskills || jdInfo.requiredSkills || [];
+                    const experienceRequired = jdInfo.experience_required || jdInfo.experiencerequired || jdInfo.experienceRequired || 'Not specified';
                     
-                    console.log("📊 Extracted data:", { name, email, currentRole, experience, skillsCount: skills.length });
+                    console.log("✅ Final Extracted Data:", {
+                        name, email, currentRole, experience,
+                        educationCount: education.length,
+                        certificationsCount: certifications.length,
+                        skillsCount: skills.length
+                    });
                     
                     modal.innerHTML = `
                         <div style="background: white; padding: 0; border-radius: 12px; max-width: 900px; width: 95%; max-height: 90vh; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
@@ -395,142 +419,110 @@
             }
         });
         
-        console.log("✅ Corrected emergency fix functions registered successfully");
+        console.log("✅ Enhanced candidate modal functions registered successfully");
     </script>
 
+    <!-- User Info Display and Logout Script -->
     <script>
-    // Display logged-in user info
+        // Display user info and logout button
         window.addEventListener('DOMContentLoaded', () => {
+            displayUserInfo();
+        });
+
+        function displayUserInfo() {
             const currentUser = JSON.parse(localStorage.getItem('current_user') || 'null');
-            const userInfoDiv = document.getElementById('user-info');
-        
+            const userInfoDiv = document.getElementById('user-info-header');
+            
             if (currentUser) {
                 const roleIcon = currentUser.role === 'admin' ? '👑' : '👤';
-                const roleText = current User.role === 'admin' ? 'ADMIN' : 'HR';
-            
+                const roleName = currentUser.role === 'admin' ? 'ADMIN' : 'HR';
+                const roleColor = currentUser.role === 'admin' ? '#ffd700' : '#90ee90';
+                
                 userInfoDiv.innerHTML = `
-                    <div>
-                        <div><strong>${currentUser.full_name}</strong></div>
-                        <div style="font-size: 12px; opacity: 0.9;">${roleIcon} ${roleText}</div>
-                        <button onclick="logout()" style="margin-top: 6px; padding: 4px 12px; background: rgba(255,255,255,0.2); border: 1px solid white; color: white; border-radius: 4px; cursor: pointer; font-size: 12px;">Logout</button>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="text-align: right;">
+                            <div style="font-weight: 600; font-size: 15px; margin-bottom: 2px;">
+                                ${currentUser.full_name}
+                            </div>
+                            <div style="font-size: 12px; opacity: 0.9; background: ${roleColor}; color: #333; padding: 2px 8px; border-radius: 10px; display: inline-block;">
+                                ${roleIcon} ${roleName}
+                            </div>
+                        </div>
+                        <button onclick="handleLogout()" style="
+                            padding: 8px 16px;
+                            background: rgba(255,255,255,0.2);
+                            border: 1px solid white;
+                            color: white;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 13px;
+                            font-weight: 500;
+                            transition: all 0.3s;
+                        " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                            Logout
+                        </button>
                     </div>
-                    `;
+                `;
             } else {
-                userInfoDiv.innerHTML = `<a href="/login.html" style="color: white; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 4px; text-decoration: none;">Login</a>`;
-            }
-        });
-    
-        async function logout() {
-            await fetch('/api/users/logout', {
-                method: 'POST',
-                credentials: 'include'
-            });
-            localStorage.clear();
-            window.location.href = '/login.html';
-        }
-    </script>
-
-    <script>
-    // Display user info and logout button
-    window.addEventListener('DOMContentLoaded', () => {
-        displayUserInfo();
-    });
-
-    function displayUserInfo() {
-        const currentUser = JSON.parse(localStorage.getItem('current_user') || 'null');
-        const userInfoDiv = document.getElementById('user-info-header');
-        
-        if (currentUser) {
-            const roleIcon = currentUser.role === 'admin' ? '👑' : '👤';
-            const roleName = currentUser.role === 'admin' ? 'ADMIN' : 'HR';
-            const roleColor = currentUser.role === 'admin' ? '#ffd700' : '#90ee90';
-            
-            userInfoDiv.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <div style="text-align: right;">
-                        <div style="font-weight: 600; font-size: 15px; margin-bottom: 2px;">
-                            ${currentUser.full_name}
-                        </div>
-                        <div style="font-size: 12px; opacity: 0.9; background: ${roleColor}; color: #333; padding: 2px 8px; border-radius: 10px; display: inline-block;">
-                            ${roleIcon} ${roleName}
-                        </div>
-                    </div>
-                    <button onclick="handleLogout()" style="
+                userInfoDiv.innerHTML = `
+                    <a href="/login" style="
+                        color: white;
+                        text-decoration: none;
                         padding: 8px 16px;
                         background: rgba(255,255,255,0.2);
-                        border: 1px solid white;
-                        color: white;
                         border-radius: 6px;
-                        cursor: pointer;
-                        font-size: 13px;
+                        font-size: 14px;
                         font-weight: 500;
                         transition: all 0.3s;
+                        display: inline-block;
                     " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-                        Logout
-                    </button>
-                </div>
-            `;
-        } else {
-            userInfoDiv.innerHTML = `
-                <a href="/login" style="
-                    color: white;
-                    text-decoration: none;
-                    padding: 8px 16px;
-                    background: rgba(255,255,255,0.2);
-                    border-radius: 6px;
-                    font-size: 14px;
-                    font-weight: 500;
-                    transition: all 0.3s;
-                    display: inline-block;
-                " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-                    Login
-                </a>
-            `;
-        }
-    }
-
-    async function handleLogout() {
-        if (!confirm('Are you sure you want to logout?')) {
-            return;
+                        Login
+                    </a>
+                `;
+            }
         }
 
-        try {
-            // Call logout API
-            const response = await fetch('/api/users/logout', {
-                method: 'POST',
-                credentials: 'include'
-            });
-
-            // Clear local storage
-            localStorage.removeItem('session_token');
-            localStorage.removeItem('current_user');
-
-            // Show success message
-            if (typeof Utils !== 'undefined' && Utils.showToast) {
-                Utils.showToast('Logged out successfully!', 'success');
+        async function handleLogout() {
+            if (!confirm('Are you sure you want to logout?')) {
+                return;
             }
 
-            // Redirect to login page after a short delay
-            setTimeout(() => {
+            try {
+                // Call logout API
+                const response = await fetch('/api/users/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                // Clear local storage
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('current_user');
+
+                // Show success message
+                if (typeof Utils !== 'undefined' && Utils.showToast) {
+                    Utils.showToast('Logged out successfully!', 'success');
+                }
+
+                // Redirect to login page after a short delay
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 1000);
+
+            } catch (error) {
+                console.error('Logout error:', error);
+                
+                // Clear storage anyway
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('current_user');
+                
+                // Redirect to login
                 window.location.href = '/login';
-            }, 1000);
-
-        } catch (error) {
-            console.error('Logout error:', error);
-            
-            // Clear storage anyway
-            localStorage.removeItem('session_token');
-            localStorage.removeItem('current_user');
-            
-            // Redirect to login
-            window.location.href = '/login';
+            }
         }
-    }
 
-    // Make logout function globally available
-    window.handleLogout = handleLogout;
-</script>
-
+        // Make logout function globally available
+        window.handleLogout = handleLogout;
+    </script>
 
 </body>
 </html>

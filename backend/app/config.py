@@ -12,5 +12,9 @@ class Settings:
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "./data/uploads")
     MAX_FILE_SIZE: int = int(os.getenv("MAX_FILE_SIZE", "10485760"))  # 10MB
     ALLOWED_EXTENSIONS: list = os.getenv("ALLOWED_EXTENSIONS", "pdf,doc,docx").split(",")
+    USE_AGENTIC_AI = os.getenv("USE_AGENTIC_AI", "true").lower() == "true"
+    USE_GROQ = os.getenv("USE_GROQ", "true").lower() == "true"
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 settings = Settings()

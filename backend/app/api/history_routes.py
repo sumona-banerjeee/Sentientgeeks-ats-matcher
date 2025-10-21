@@ -17,7 +17,7 @@ async def save_matching_history(
 ):
     """Save matching session with automatic user tracking"""
     try:
-        # Get current user (who is doing the matching)
+        # Getting current user like who is doing the matching
         from ..api.user_routes import get_current_user_from_session
         current_user = get_current_user_from_session(session_token, db)
         
@@ -39,7 +39,7 @@ async def save_matching_history(
         if top_resume and top_resume.structured_data:
             top_candidate_name = top_resume.structured_data.get('name', top_resume.filename.replace('.pdf', ''))
         
-        # AUTOMATIC USER TRACKING
+        # It is a AUTOMATIC USER TRACKING
         history_record = MatchingHistory(
             session_id=session_id,
             user_id=current_user.id if current_user else None,
@@ -61,7 +61,7 @@ async def save_matching_history(
         db.commit()
         
         user_info = f"{current_user.full_name} ({current_user.role})" if current_user else "Guest"
-        print(f"✅ History saved for session {session_id} by {user_info}")
+        print(f"History saved for session {session_id} by {user_info}")
         
         return {
             "status": "success", 
@@ -71,7 +71,7 @@ async def save_matching_history(
     
     except Exception as e:
         db.rollback()
-        print(f"❌ Error saving history: {e}")
+        print(f"Error saving history: {e}")
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 @router.get("/list")
@@ -92,14 +92,14 @@ async def get_matching_history(
         
         if current_user:
             if current_user.role == "admin":
-                # Admin sees EVERYTHING
-                print(f"🔑 Admin '{current_user.username}' accessing ALL history")
+                # Admin will be able to see every history created by the all the hr and created by him.
+                print(f"Admin '{current_user.username}' accessing ALL history")
             elif current_user.role == "hr":
-                # HR sees only THEIR OWN work
-                print(f"👤 HR '{current_user.username}' accessing own history")
+                # HR sees only their own history
+                print(f"HR '{current_user.username}' accessing own history")
                 query = query.filter(MatchingHistory.user_id == current_user.id)
         else:
-            # Guest sees only guest records
+            # Guest sees only own guest records
             query = query.filter(MatchingHistory.user_id == None)
         
         history_records = query.order_by(
@@ -116,7 +116,7 @@ async def get_matching_history(
         }
     
     except Exception as e:
-        print(f"❌ Error fetching history: {e}")
+        print(f"Error fetching history: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/details/{session_id}")
@@ -190,7 +190,7 @@ async def get_user_stats(
             raise HTTPException(status_code=401, detail="Authentication required")
         
         if current_user.role == "admin":
-            # Admin sees ALL users' stats
+            # Admin sees ALL users' numeric results
             all_history = db.query(MatchingHistory).all()
             
             user_stats = {}
@@ -215,7 +215,7 @@ async def get_user_stats(
             }
         
         elif current_user.role == "hr":
-            # HR sees only THEIR stats
+            # HR sees only THEIR numeric results
             history_records = db.query(MatchingHistory).filter(
                 MatchingHistory.user_id == current_user.id
             ).all()

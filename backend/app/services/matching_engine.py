@@ -12,21 +12,21 @@ class MatchingEngine:
         try:
             try:
                 self.nlp = spacy.load("en_core_web_md")
-                print("✅ spaCy medium model loaded successfully")
+                print("spaCy medium model loaded successfully")
             except OSError:
                 self.nlp = spacy.load("en_core_web_sm")
-                print("✅ spaCy small model loaded as fallback")
+                print("spaCy small model loaded as fallback")
         except OSError:
-            print("⚠️ spaCy model not found, using basic matching")
+            print("spaCy model not found, using basic matching")
             self.nlp = None
     
     def calculate_ats_score(self, jd_data: dict, resume_data: dict, skills_weightage: dict, manual_priorities: List[Dict] = None) -> dict:
         """Calculate enhanced ATS score with experience requirement matching"""
         
-        print(f"🎯 Starting FINAL ATS scoring with experience requirements...")
-        print(f"📋 JD data available: {bool(jd_data)}")
-        print(f"📄 Resume data available: {bool(resume_data)}")
-        print(f"🎯 Manual priorities provided: {bool(manual_priorities)}")
+        print(f"Starting FINAL ATS scoring with experience requirements...")
+        print(f"JD data available: {bool(jd_data)}")
+        print(f"Resume data available: {bool(resume_data)}")
+        print(f"Manual priorities provided: {bool(manual_priorities)}")
         
         if not jd_data or not resume_data:
             return self._get_default_score("Missing JD or resume data")
@@ -34,19 +34,19 @@ class MatchingEngine:
         try:
             # Extract JD experience requirement
             jd_experience_required = self._extract_experience_requirement(jd_data)
-            print(f"📋 JD Experience Required: {jd_experience_required} years")
+            print(f"JD Experience Required: {jd_experience_required} years")
             
             # Extract job role priorities
             job_priorities = self._extract_job_priorities(jd_data, manual_priorities)
-            print(f"🎯 Job Priorities: {[(p['role'], p['priority']) for p in job_priorities]}")
+            print(f"Job Priorities: {[(p['role'], p['priority']) for p in job_priorities]}")
             
             # Enhanced: Parse resume skills properly
             resume_skills = self._extract_resume_skills(resume_data)
-            print(f"📄 Extracted Resume Skills: {len(resume_skills)} skills")
+            print(f"Extracted Resume Skills: {len(resume_skills)} skills")
             
             # Enhanced: Parse experience with description analysis
             enhanced_experience = self._enhance_experience_data(resume_data, job_priorities)
-            print(f"🏢 Enhanced Experience Timeline: {len(enhanced_experience)} jobs")
+            print(f"Enhanced Experience Timeline: {len(enhanced_experience)} jobs")
             
             # Update resume data with enhanced information
             enhanced_resume_data = resume_data.copy()
@@ -80,12 +80,12 @@ class MatchingEngine:
                 else:
                     final_score = skills_score
                     score_method = "Skills-Based (No experience required)"
-                print(f"🎓 Fresh Graduate - Score: {final_score:.2f}%")
+                print(f"Fresh Graduate - Score: {final_score:.2f}%")
             else:
                 # Experienced candidates: Average of both scores
                 final_score = (skills_score + experience_score) / 2
                 score_method = "Skills + Experience Average"
-                print(f"👨‍💼 Experienced - Average Score: ({skills_score:.1f}% + {experience_score:.1f}%) ÷ 2 = {final_score:.2f}%")
+                print(f"Experienced - Average Score: ({skills_score:.1f}% + {experience_score:.1f}%) ÷ 2 = {final_score:.2f}%")
             
             # Detailed analysis
             detailed_analysis = {
@@ -107,9 +107,9 @@ class MatchingEngine:
                 }
             }
             
-            print(f"🎯 FINAL ATS Score: {final_score:.2f}%")
-            print(f"📊 Skills: {skills_score:.1f}/100 | Experience: {experience_score:.1f}/100")
-            print(f"📋 Experience Requirement: {jd_experience_required} years | Candidate: {total_experience} years")
+            print(f"FINAL ATS Score: {final_score:.2f}%")
+            print(f"Skills: {skills_score:.1f}/100 | Experience: {experience_score:.1f}/100")
+            print(f"Experience Requirement: {jd_experience_required} years | Candidate: {total_experience} years")
             
             return {
                 "overall_score": round(min(100, max(0, final_score)), 2),
@@ -120,13 +120,13 @@ class MatchingEngine:
             }
             
         except Exception as e:
-            print(f"❌ Error in final matching calculation: {str(e)}")
+            print(f"Error in final matching calculation: {str(e)}")
             traceback.print_exc()
             return self._get_default_score(str(e))
     
-    # Extract Experience Requirement from JD
+    
     def _extract_experience_requirement(self, jd_data: Dict) -> float:
-        """Extract experience requirement from job description"""
+        # Extract experience requirement from job description
         
         # Source 1: Direct experience_required field
         if 'experience_required' in jd_data:
@@ -161,7 +161,7 @@ class MatchingEngine:
             matches = re.findall(pattern, all_text)
             if matches:
                 if isinstance(matches[0], tuple):
-                    # Range like "2-5 years" - take minimum
+                    # Range like "2-5 years" take minimum
                     return float(matches[0][0])
                 else:
                     # Single number like "3+ years"
@@ -170,9 +170,9 @@ class MatchingEngine:
         # Default: No specific experience required
         return 0.0
     
-    # Extract Resume Skills
+    
     def _extract_resume_skills(self, resume_data: Dict) -> List[str]:
-        """Extract and normalize skills from resume with multiple sources"""
+        # Extract Resume Skills
         
         skills = []
         
@@ -269,7 +269,7 @@ class MatchingEngine:
         return found_techs
     
     def _extract_technologies_from_description(self, description: str, priority_skills: List[str]) -> List[str]:
-        """Extract technologies from job description text"""
+        # Extracting technologies from job description text
         
         if not description:
             return []
@@ -293,14 +293,14 @@ class MatchingEngine:
             'programming': ['programming', 'coding', 'development', 'software development']
         }
         
-        # Search for all technology patterns
+        # Searching for all technology patterns
         for category, techs in tech_patterns.items():
             for tech in techs:
                 pattern = r'\b' + re.escape(tech.lower()) + r'\b'
                 if re.search(pattern, desc_lower):
                     found_techs.append(tech)
         
-        # Also search for priority skills specifically
+        # Searching for priority skills specifically
         for skill in priority_skills:
             pattern = r'\b' + re.escape(skill.lower()) + r'\b'
             if re.search(pattern, desc_lower):
@@ -315,10 +315,10 @@ class MatchingEngine:
         
         resume_skills = resume_data.get('skills', [])
         if not resume_skills:
-            print("❌ No skills found in resume - Skills Score: 0/100")
+            print("No skills found in resume - Skills Score: 0/100")
             return 0.0
         
-        print(f"🎯 SKILLS SCORING:")
+        print(f"SKILLS SCORING:")
         
         # Collect ALL required skills from ALL priorities
         all_required_skills = []
@@ -339,7 +339,7 @@ class MatchingEngine:
                     }
         
         total_required_skills = len(all_required_skills)
-        print(f"  📋 Total Skills Required: {total_required_skills}")
+        print(f"Total Skills Required: {total_required_skills}")
         
         if total_required_skills == 0:
             return 0.0
@@ -353,7 +353,7 @@ class MatchingEngine:
         for required_skill in all_required_skills:
             metadata = skill_metadata[required_skill]
             priority_level = metadata['priority']
-            config_weight = metadata['config_weight'] / 100  # Convert to 0-1
+            config_weight = metadata['config_weight'] / 100
             
             # Priority multipliers
             if priority_level == 1:
@@ -372,10 +372,10 @@ class MatchingEngine:
             if has_skill:
                 total_weighted_score += final_weight
                 matched_skills.append(required_skill)
-                print(f"    ✅ {required_skill} (P{priority_level}) - Weight: {final_weight:.3f}")
+                print(f"{required_skill} (P{priority_level}) - Weight: {final_weight:.3f}")
             else:
                 missing_skills.append(required_skill)
-                print(f"    ❌ {required_skill} (P{priority_level}) - Missing")
+                print(f"{required_skill} (P{priority_level}) - Missing")
         
         # Calculate base skills score
         if total_possible_weight == 0:
@@ -413,88 +413,103 @@ class MatchingEngine:
         # Final skills score
         final_skills_score = min(100, base_skills_score + coverage_bonus + priority_bonus)
         
-        print(f"  📊 Skills: {len(matched_skills)}/{total_required_skills} matched ({coverage_ratio*100:.1f}%)")
-        print(f"  📊 Score: {base_skills_score:.1f} + {coverage_bonus} + {priority_bonus} = {final_skills_score:.1f}/100")
+        print(f"Skills: {len(matched_skills)}/{total_required_skills} matched ({coverage_ratio*100:.1f}%)")
+        print(f"Score: {base_skills_score:.1f} + {coverage_bonus} + {priority_bonus} = {final_skills_score:.1f}/100")
         
         return final_skills_score
     
-    # SCORE 2: Enhanced Experience Matching with JD Requirements
+
+    def _calculate_experience_requirement_score(self, total_experience: float, jd_experience_required: float) -> float:
+    
+        # Case 1: JD doesn't specify experience requirement
+        if jd_experience_required == 0:
+            # Reward candidates with more experience
+            if total_experience == 0:
+                return 50.0  # Neutral for fresh graduates
+            elif total_experience >= 5:
+                return 100.0  # Excellent for 5+ years
+            elif total_experience >= 3:
+                return 85.0  # Very good for 3-5 years
+            elif total_experience >= 2:
+                return 75.0  # Good for 2-3 years
+            elif total_experience >= 1:
+                return 65.0  # Moderate for 1-2 years
+            else:
+                return 55.0  # Slightly above neutral
+    
+        # Case 2: JD specifies experience requirement
+        else:
+            # Meets or exceeds requirement significantly (150%+)
+            if total_experience >= jd_experience_required * 1.5:
+                return 100.0
+        
+            # Meets or slightly exceeds requirement (100-150%)
+            elif total_experience >= jd_experience_required:
+                excess_ratio = (total_experience - jd_experience_required) / (jd_experience_required * 0.5)
+                return min(100.0, 85 + (excess_ratio * 15))
+        
+            # 80-100% of requirement
+            elif total_experience >= jd_experience_required * 0.8:
+                ratio = total_experience / jd_experience_required
+                return 60 + ((ratio - 0.8) * 125)
+        
+            # 50-80% of requirement
+            elif total_experience >= jd_experience_required * 0.5:
+                ratio = total_experience / jd_experience_required
+                return 30 + ((ratio - 0.5) * 100)
+        
+            # Less than 50% of requirement
+            else:
+                ratio = total_experience / jd_experience_required
+                return ratio * 60  # 0-30 range
+        
+    
     def _calculate_enhanced_experience_score(self, resume_data: Dict, job_priorities: List[Dict], jd_experience_required: float) -> float:
-        """Calculate enhanced experience score with JD requirement matching (0-100 points)"""
-        
-        experience_timeline = resume_data.get('experience_timeline', [])
-        total_experience = resume_data.get('total_experience', 0)
-        
-        print(f"🏢 ENHANCED EXPERIENCE SCORING:")
-        print(f"  📅 Total Experience: {total_experience} years")
-        print(f"  📋 JD Required Experience: {jd_experience_required} years")
-        print(f"  📋 Experience Timeline: {len(experience_timeline)} jobs")
-        
+    
+        experience_timeline = resume_data.get("experience_timeline", [])
+        total_experience = resume_data.get("total_experience", 0)
+    
+        print(f"[ENHANCED EXPERIENCE SCORING]")
+        print(f"   Total Experience: {total_experience} years")
+        print(f"   JD Required Experience: {jd_experience_required} years")
+        print(f"   Experience Timeline: {len(experience_timeline)} jobs")
+    
         # Handle fresh graduates
         if not experience_timeline or total_experience == 0:
             if jd_experience_required == 0:
-                print("  🎓 Fresh Graduate + No Experience Required = 50/100")
-                return 50.0  # Neutral score when no experience required
+                print("   Fresh Graduate - No Experience Required: 50/100")
+                return 50.0  # Neutral score
             else:
-                print("  🎓 Fresh Graduate but Experience Required = 10/100")
+                print("   Fresh Graduate but Experience Required: 10/100")
                 return 10.0  # Low score when experience is required
-        
+    
         # STEP 1: Experience Requirement Matching Score (40% weight)
-        experience_requirement_score = self._calculate_experience_requirement_score(total_experience, jd_experience_required)
-        
+        experience_requirement_score = self.calculate_experience_requirement_score(total_experience, jd_experience_required)
+    
         # STEP 2: Relevant Experience Score (40% weight)
-        relevant_experience_score = self._calculate_relevant_experience_score(experience_timeline, job_priorities)
-        
+        relevant_experience_score = self.calculate_relevant_experience_score(experience_timeline, job_priorities)
+    
         # STEP 3: Recent/Current Experience Bonus (20% weight)
-        recent_experience_bonus = self._calculate_recent_experience_bonus(experience_timeline, job_priorities)
-        
+        recent_experience_bonus = self.calculate_recent_experience_bonus(experience_timeline, job_priorities)
+    
         # Final experience score calculation
         final_experience_score = (
-            experience_requirement_score * 0.4 +
-            relevant_experience_score * 0.4 +
-            recent_experience_bonus * 0.2
+            (experience_requirement_score * 0.4) +
+            (relevant_experience_score * 0.4) +
+            (recent_experience_bonus * 0.2)
         )
-        
-        print(f"  📊 Experience Breakdown:")
-        print(f"    • Requirement Match: {experience_requirement_score:.1f}/100 (40% weight)")
-        print(f"    • Relevant Experience: {relevant_experience_score:.1f}/100 (40% weight)")
-        print(f"    • Recent/Current Bonus: {recent_experience_bonus:.1f}/100 (20% weight)")
-        print(f"    • Final Experience Score: {final_experience_score:.1f}/100")
-        
-        return min(100, max(0, final_experience_score))
     
-    def _calculate_experience_requirement_score(self, total_experience: float, jd_experience_required: float) -> float:
-        """Calculate score based on JD experience requirement"""
-        
-        if jd_experience_required == 0:
-            # No specific experience required
-            return 100.0
-        
-        if total_experience >= jd_experience_required:
-            # Meets or exceeds requirement
-            if total_experience >= jd_experience_required * 1.5:
-                return 100.0  # 150%+ of required = Perfect score
-            else:
-                # Linear scale from meets requirement to 150%
-                excess_ratio = (total_experience - jd_experience_required) / (jd_experience_required * 0.5)
-                return 85 + (excess_ratio * 15)  # 85-100 range
-        else:
-            # Below requirement
-            if total_experience >= jd_experience_required * 0.8:
-                # 80-100% of requirement
-                ratio = total_experience / jd_experience_required
-                return 60 + ((ratio - 0.8) * 125)  # 60-85 range
-            elif total_experience >= jd_experience_required * 0.5:
-                # 50-80% of requirement
-                ratio = total_experience / jd_experience_required
-                return 30 + ((ratio - 0.5) * 100)  # 30-60 range
-            else:
-                # Less than 50% of requirement
-                ratio = total_experience / jd_experience_required
-                return ratio * 60  # 0-30 range
+        print(f" Experience Breakdown:")
+        print(f"      • Requirement Match: {experience_requirement_score:.1f}/100 (40% weight)")
+        print(f"      • Relevant Experience: {relevant_experience_score:.1f}/100 (40% weight)")
+        print(f"      • Recent/Current Bonus: {recent_experience_bonus:.1f}/100 (20% weight)")
+        print(f"      • Final Experience Score: {final_experience_score:.1f}/100")
+    
+        return min(100, max(0, final_experience_score))
+
 
     def _calculate_relevant_experience_score(self, experience_timeline: List[Dict], job_priorities: List[Dict]) -> float:
-        """Calculate score based on relevant experience in priority technologies - ENHANCED"""
+        # Calculate score based on relevant experience in priority technologies
         
         if not experience_timeline or not job_priorities:
             return 0.0
@@ -642,7 +657,7 @@ class MatchingEngine:
         return min(100, final_score)
 
     def _calculate_recent_experience_bonus(self, experience_timeline: List[Dict], job_priorities: List[Dict]) -> float:
-        """Calculate bonus for recent/current experience in priority technologies"""
+        # Calculate bonus for recent or current experience in priority technologies
         
         if not experience_timeline or not job_priorities:
             return 0.0
@@ -654,7 +669,7 @@ class MatchingEngine:
             exp_duration = experience.get('duration', '').lower()
             exp_technologies = [tech.lower().strip() for tech in experience.get('technologies_used', [])]
             
-            # Check if recent/current
+            #checking
             is_current = ('present' in exp_duration or 'current' in exp_duration)
             is_recent = any(str(year) in exp_duration for year in [current_year, current_year-1])
             
@@ -691,7 +706,7 @@ class MatchingEngine:
     
     # Helper Methods
     def _enhanced_candidate_has_skill(self, target_skill: str, resume_skills: List[str]) -> bool:
-        """Enhanced skill matching"""
+        # Enhanced skill matching
         
         target_normalized = self._normalize_skill(target_skill)
         
@@ -717,7 +732,7 @@ class MatchingEngine:
         return False
     
     def _enhanced_technology_match(self, required_tech: str, resume_tech: str) -> bool:
-        """Enhanced technology matching"""
+        # Enhanced technology matching
         
         # Direct match
         if required_tech == resume_tech:
@@ -754,7 +769,7 @@ class MatchingEngine:
         return False
     
     def _enhanced_skill_synonym_match(self, skill1: str, skill2: str) -> bool:
-        """Enhanced synonym matching for skills"""
+        # Enhanced synonym matching for skills
         
         enhanced_synonyms = {
             'java': ['java', 'core java', 'java se', 'java ee', 'j2ee', 'openjdk'],
@@ -786,7 +801,7 @@ class MatchingEngine:
         return False
     
     def _fuzzy_skill_match(self, skill1: str, skill2: str) -> bool:
-        """Fuzzy matching for skills"""
+        # Fuzzy matching for skills
         
         if len(skill1) < 3 or len(skill2) < 3:
             return False
@@ -795,7 +810,7 @@ class MatchingEngine:
         overlap = len(set(skill1) & set(skill2))
         min_length = min(len(skill1), len(skill2))
         
-        if overlap / min_length > 0.8:  # 80% character overlap
+        if overlap / min_length > 0.8:
             return True
         
         # spaCy semantic similarity
@@ -804,14 +819,14 @@ class MatchingEngine:
                 doc1 = self.nlp(skill1)
                 doc2 = self.nlp(skill2)
                 similarity = doc1.similarity(doc2)
-                return similarity > 0.85  # High similarity threshold
+                return similarity > 0.85 
             except:
                 pass
         
         return False
     
     def _normalize_skill(self, skill: str) -> str:
-        """Normalize skill for consistent matching"""
+        # Normalize skill for consistent matching
         
         if not isinstance(skill, str):
             return str(skill).lower().strip()
@@ -832,7 +847,7 @@ class MatchingEngine:
         
         analysis = {
             'total_resume_skills': len(resume_skills),
-            'resume_skills': resume_skills[:20],  # First 20 skills
+            'resume_skills': resume_skills[:20], 
             'priorities': [],
             'overall_summary': {}
         }
@@ -882,7 +897,7 @@ class MatchingEngine:
         return analysis
     
     def _get_enhanced_experience_analysis(self, resume_data: Dict, job_priorities: List[Dict], jd_experience_required: float) -> Dict:
-        """Enhanced experience analysis with JD requirement matching"""
+        # Enhanced experience analysis with JD requirement matching
         
         experience_timeline = resume_data.get('experience_timeline', [])
         total_experience = resume_data.get('total_experience', 0)
@@ -952,7 +967,7 @@ class MatchingEngine:
         return analysis
     
     def _categorize_experience_strength(self, years: float, priority_level: int) -> str:
-        """Categorize experience strength"""
+        # Categorize experience strength
         if priority_level == 1:
             if years >= 5:
                 return "Excellent"
@@ -978,14 +993,14 @@ class MatchingEngine:
     def _extract_job_priorities(self, jd_data: Dict, manual_priorities: List[Dict] = None) -> List[Dict]:
         """Extract job priorities"""
         if manual_priorities and len(manual_priorities) > 0:
-            print(f"🎯 Using MANUAL priorities: {len(manual_priorities)} specified")
+            print(f"Using MANUAL priorities: {len(manual_priorities)} specified")
             return manual_priorities
         
-        print(f"🤖 Using AUTO-DETECTED priorities")
+        print(f"Using AUTO-DETECTED priorities")
         return self._auto_detect_job_priorities(jd_data)
     
     def _auto_detect_job_priorities(self, jd_data: Dict) -> List[Dict]:
-        """Auto-detect priorities from JD dynamically based on actual requirements"""
+        # Auto-detect priorities from JD dynamically based on actual requirements
         
         job_title = jd_data.get('job_title', '').lower()
         job_description = jd_data.get('description', '').lower()
@@ -995,7 +1010,7 @@ class MatchingEngine:
         all_text = f"{job_title} {job_description}"
         priorities = []
         
-        # DYNAMIC ROLE DETECTION - All roles compete for Priority 1
+        # DYNAMIC ROLE DETECTION All roles compete for Priority 1
         role_detection_patterns = [
            
     {
@@ -2629,8 +2644,290 @@ class MatchingEngine:
         'key_skills': ['hair styling', 'hair cutting', 'hair coloring', 'salon management'],
         'patterns': ['hair stylist', 'hairdresser', 'hairstylist', 'salon professional'],
         'weight': 1.0
+    },
+    {
+        'role': 'Salesforce Developer',
+        'key_skills': ['salesforce', 'apex', 'visualforce', 'lightning', 'crm', 'soql'],
+        'patterns': ['salesforce developer', 'salesforce engineer', 'sfdc developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'SAP Consultant',
+        'key_skills': ['sap', 'abap', 'sap hana', 'sap mm', 'sap sd', 'sap fico'],
+        'patterns': ['sap consultant', 'sap developer', 'sap functional', 'sap technical'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Oracle Developer',
+        'key_skills': ['oracle', 'pl/sql', 'oracle forms', 'oracle reports', 'database'],
+        'patterns': ['oracle developer', 'oracle consultant', 'pl/sql developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Shopify Developer',
+        'key_skills': ['shopify', 'liquid', 'e-commerce', 'shopify apps', 'theme development'],
+        'patterns': ['shopify developer', 'shopify expert', 'shopify theme developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'WordPress Developer',
+        'key_skills': ['wordpress', 'php', 'mysql', 'woocommerce', 'theme development', 'plugin development'],
+        'patterns': ['wordpress developer', 'wp developer', 'wordpress theme developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'RPA Developer',
+        'key_skills': ['rpa', 'uipath', 'automation anywhere', 'blue prism', 'process automation'],
+        'patterns': ['rpa developer', 'automation developer', 'uipath developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'ServiceNow Developer',
+        'key_skills': ['servicenow', 'itsm', 'javascript', 'workflows', 'service portal'],
+        'patterns': ['servicenow developer', 'servicenow consultant', 'snow developer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Workday Consultant',
+        'key_skills': ['workday', 'hcm', 'financials', 'integration', 'workday studio'],
+        'patterns': ['workday consultant', 'workday developer', 'workday specialist'],
+        'weight': 1.0
+    },
+    
+    
+    {
+        'role': 'Investment Banker',
+        'key_skills': ['investment banking', 'financial modeling', 'valuation', 'mergers acquisitions', 'capital markets'],
+        'patterns': ['investment banker', 'ib analyst', 'investment banking analyst'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Equity Research Analyst',
+        'key_skills': ['equity research', 'financial analysis', 'stock analysis', 'valuation', 'modeling'],
+        'patterns': ['equity research analyst', 'equity analyst', 'research analyst'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Credit Analyst',
+        'key_skills': ['credit analysis', 'risk assessment', 'financial modeling', 'loan evaluation'],
+        'patterns': ['credit analyst', 'credit risk analyst', 'loan analyst'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Portfolio Manager',
+        'key_skills': ['portfolio management', 'asset allocation', 'investment strategy', 'risk management'],
+        'patterns': ['portfolio manager', 'fund manager', 'investment manager'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Risk Manager',
+        'key_skills': ['risk management', 'risk assessment', 'compliance', 'regulatory', 'internal controls'],
+        'patterns': ['risk manager', 'risk analyst', 'enterprise risk manager'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Actuary',
+        'key_skills': ['actuarial science', 'statistics', 'risk modeling', 'insurance', 'pension'],
+        'patterns': ['actuary', 'actuarial analyst', 'actuarial consultant'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Treasury Manager',
+        'key_skills': ['treasury management', 'cash management', 'liquidity', 'forex', 'financial planning'],
+        'patterns': ['treasury manager', 'treasury analyst', 'cash manager'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Tax Consultant',
+        'key_skills': ['taxation', 'tax planning', 'gst', 'income tax', 'tax compliance'],
+        'patterns': ['tax consultant', 'tax advisor', 'tax manager'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Compliance Officer',
+        'key_skills': ['compliance', 'regulatory', 'aml', 'kyc', 'risk management', 'audit'],
+        'patterns': ['compliance officer', 'compliance manager', 'regulatory compliance'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Insurance Underwriter',
+        'key_skills': ['underwriting', 'risk assessment', 'insurance', 'policy analysis'],
+        'patterns': ['underwriter', 'insurance underwriter', 'underwriting analyst'],
+        'weight': 1.0
+    },
+    
+    
+    {
+        'role': 'Corporate Lawyer',
+        'key_skills': ['corporate law', 'contract law', 'mergers acquisitions', 'compliance', 'legal drafting'],
+        'patterns': ['corporate lawyer', 'corporate counsel', 'in-house counsel'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Legal Advisor',
+        'key_skills': ['legal advisory', 'contract review', 'legal compliance', 'litigation support'],
+        'patterns': ['legal advisor', 'legal consultant', 'legal analyst'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Patent Attorney',
+        'key_skills': ['patent law', 'intellectual property', 'patent drafting', 'trademark', 'ip litigation'],
+        'patterns': ['patent attorney', 'ip attorney', 'patent agent'],
+        'weight': 1.0
+    },
+    
+   
+    {
+        'role': 'Research Scientist',
+        'key_skills': ['research', 'scientific analysis', 'data analysis', 'publications', 'experimentation'],
+        'patterns': ['research scientist', 'scientist', 'research associate', 'researcher'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Professor',
+        'key_skills': ['teaching', 'research', 'curriculum development', 'academic writing', 'mentoring'],
+        'patterns': ['professor', 'assistant professor', 'associate professor'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Librarian',
+        'key_skills': ['library management', 'cataloging', 'information management', 'research assistance'],
+        'patterns': ['librarian', 'library manager', 'information specialist'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Educational Counselor',
+        'key_skills': ['counseling', 'career guidance', 'student advising', 'educational planning'],
+        'patterns': ['educational counselor', 'career counselor', 'academic counselor'],
+        'weight': 1.0
+    },
+    
+    
+    {
+        'role': 'Social Worker',
+        'key_skills': ['social work', 'community development', 'counseling', 'case management', 'advocacy'],
+        'patterns': ['social worker', 'community worker', 'welfare officer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'NGO Program Manager',
+        'key_skills': ['program management', 'ngo operations', 'project coordination', 'fundraising', 'community development'],
+        'patterns': ['ngo program manager', 'development officer', 'project manager ngo'],
+        'weight': 1.0
+    },
+    
+   
+    {
+        'role': 'Real Estate Agent',
+        'key_skills': ['real estate', 'property sales', 'negotiation', 'market analysis', 'client relations'],
+        'patterns': ['real estate agent', 'property consultant', 'realtor'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Property Manager',
+        'key_skills': ['property management', 'tenant relations', 'maintenance', 'lease administration'],
+        'patterns': ['property manager', 'facility manager', 'building manager'],
+        'weight': 1.0
+    },
+    
+   
+    {
+        'role': 'Insurance Agent',
+        'key_skills': ['insurance sales', 'policy advising', 'customer service', 'claims processing'],
+        'patterns': ['insurance agent', 'insurance advisor', 'lic agent'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Claims Adjuster',
+        'key_skills': ['claims processing', 'investigation', 'damage assessment', 'negotiation'],
+        'patterns': ['claims adjuster', 'claims examiner', 'insurance adjuster'],
+        'weight': 1.0
+    },
+    
+    
+    {
+        'role': 'Game Designer',
+        'key_skills': ['game design', 'level design', 'game mechanics', 'storytelling', 'prototyping'],
+        'patterns': ['game designer', 'level designer', 'gameplay designer'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Musician',
+        'key_skills': ['music', 'performance', 'composition', 'music theory', 'instruments'],
+        'patterns': ['musician', 'music artist', 'composer', 'singer'],
+        'weight': 1.0
+    },
+    
+  
+    {
+        'role': 'Aircraft Loadmaster',
+        'key_skills': ['load planning', 'weight and balance', 'cargo operations', 'aircraft loading'],
+        'patterns': ['loadmaster', 'cargo specialist', 'load planner'],
+        'weight': 1.0
+    },
+    
+   
+    {
+        'role': 'Warehouse Manager',
+        'key_skills': ['warehouse management', 'inventory', 'logistics', 'operations', 'wms'],
+        'patterns': ['warehouse manager', 'warehouse supervisor', 'warehouse operations'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Logistics Coordinator',
+        'key_skills': ['logistics', 'supply chain', 'coordination', 'shipping', 'transportation'],
+        'patterns': ['logistics coordinator', 'logistics executive', 'logistics analyst'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Customs Officer',
+        'key_skills': ['customs clearance', 'import export', 'documentation', 'compliance', 'trade regulations'],
+        'patterns': ['customs officer', 'customs executive', 'customs specialist'],
+        'weight': 1.0
+    },
+    
+ 
+    {
+        'role': 'Ship Captain',
+        'key_skills': ['navigation', 'maritime operations', 'crew management', 'safety', 'ship handling'],
+        'patterns': ['ship captain', 'master mariner', 'ship master'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Port Manager',
+        'key_skills': ['port operations', 'cargo handling', 'logistics', 'maritime management'],
+        'patterns': ['port manager', 'harbor master', 'port operations manager'],
+        'weight': 1.0
+    },
+    
+ 
+    {
+        'role': 'Mining Engineer',
+        'key_skills': ['mining', 'excavation', 'mineral processing', 'mine planning', 'safety'],
+        'patterns': ['mining engineer', 'mine engineer', 'mining professional'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Geologist',
+        'key_skills': ['geology', 'geological survey', 'mineral exploration', 'rock analysis'],
+        'patterns': ['geologist', 'exploration geologist', 'geological engineer'],
+        'weight': 1.0
+    },
+    
+  
+    {
+        'role': 'Translator',
+        'key_skills': ['translation', 'language proficiency', 'localization', 'interpretation'],
+        'patterns': ['translator', 'language translator', 'localization specialist'],
+        'weight': 1.0
+    },
+    {
+        'role': 'Interpreter',
+        'key_skills': ['interpretation', 'language proficiency', 'simultaneous interpretation', 'communication'],
+        'patterns': ['interpreter', 'language interpreter', 'conference interpreter'],
+        'weight': 1.0
     }
-            ]
+        ]
 
         
         # STEP 1: Find Primary Match (becomes Priority 1)
@@ -2671,7 +2968,7 @@ class MatchingEngine:
             priorities.append(primary_match)
         
         # STEP 3: Find Secondary Matches (Priority 2 & 3)
-        if len(priorities) < 3:  # Add up to 2 more priorities
+        if len(priorities) < 3:
             secondary_candidates = []
             
             for role_pattern in role_detection_patterns:
@@ -2771,7 +3068,7 @@ class MatchingEngine:
         return priorities
     
     def _parse_experience_years(self, exp_str: str) -> float:
-        """Parse experience years from string"""
+        # Parse experience years from string
         if not exp_str:
             return 0.0
         
@@ -2791,14 +3088,14 @@ class MatchingEngine:
         return 0.0
     
     def _extract_years_from_duration(self, duration_str: str) -> float:
-        """Extract years from duration string with enhanced parsing"""
+        # Extract years from duration string with enhanced parsing
         
         if not duration_str:
             return 0.5
         
         duration_str = duration_str.lower().strip()
         
-        # Handle "Mar 2022 - Present" format
+        
         present_patterns = [
             r'(\w+)\s+(\d{4})\s*[-–]\s*present',
             r'(\d{4})\s*[-–]\s*present',
@@ -2843,7 +3140,7 @@ class MatchingEngine:
         return 1.0
     
     def _get_default_score(self, error_msg: str) -> dict:
-        """Default score structure"""
+        # Default score structure
         return {
             "overall_score": 0,
             "skill_match_score": 0,

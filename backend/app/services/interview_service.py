@@ -8,20 +8,20 @@ class InterviewService:
         self.llm_service = LLMService()
     
     async def generate_interview_questions(self, jd_data: Dict[str, Any], difficulty_level: str = "medium-hard") -> List[str]:
-        """Generate interview questions based on JD skills and requirements"""
+        #Generaing interview questions based on JD skills and requirements
         
-        # Extract skills from JD
+        # Extracting skills from JD
         primary_skills = jd_data.get('primary_skills', [])
         secondary_skills = jd_data.get('secondary_skills', [])
         job_title = jd_data.get('job_title', 'Software Engineer')
         experience_required = jd_data.get('experience_required', '2-3 years')
         responsibilities = jd_data.get('responsibilities', [])
         
-        # Combine all skills
+        # Combining all skills
         all_skills = primary_skills + secondary_skills
         skills_text = ', '.join(all_skills) if all_skills else 'general technical skills'
         
-        # Create comprehensive prompt
+        # Creating comprehensive prompt
         prompt = f"""
 Generate exactly 10 interview questions for a {job_title} position requiring {experience_required} of experience.
 
@@ -49,10 +49,10 @@ Make questions specific to {job_title} role and {skills_text} skills.
 """
 
         try:
-            print(f"🎯 Generating interview questions for {job_title}...")
+            print(f"Generating interview questions for {job_title}...")
             response = await self.llm_service._make_api_call(prompt)
             
-            # Try to parse JSON response
+            # Trying to parse JSON response
             try:
                 questions = json.loads(response)
                 if isinstance(questions, list) and len(questions) >= 10:
@@ -60,14 +60,14 @@ Make questions specific to {job_title} role and {skills_text} skills.
                 else:
                     raise ValueError("Invalid response format")
             except (json.JSONDecodeError, ValueError):
-                # Try to extract JSON from response
+                # Trying to extract JSON from response
                 import re
                 json_match = re.search(r'\[(.*?)\]', response, re.DOTALL)
                 if json_match:
                     questions = json.loads(json_match.group())
                     return questions[:10] if len(questions) >= 10 else questions
                 else:
-                    # Fallback: split by lines and clean up
+                    # Fallback split by lines and clean up
                     lines = response.split('\n')
                     questions = []
                     for line in lines:
@@ -82,12 +82,12 @@ Make questions specific to {job_title} role and {skills_text} skills.
                     return questions[:10] if len(questions) >= 10 else questions
                     
         except Exception as e:
-            print(f"❌ Error generating interview questions: {str(e)}")
-            # Return fallback questions based on skills
+            print(f"Error generating interview questions: {str(e)}")
+            # Returning fallback questions based on skills
             return self._generate_fallback_questions(all_skills, job_title)
     
     def _generate_fallback_questions(self, skills: List[str], job_title: str) -> List[str]:
-        """Generate fallback questions when API fails"""
+        #Generate fallback questions when API fails
         base_questions = [
             f"Describe a challenging project you've worked on as a {job_title} and how you overcame technical obstacles.",
             f"How would you design a scalable system for a high-traffic application in your domain?",
@@ -101,10 +101,10 @@ Make questions specific to {job_title} role and {skills_text} skills.
             f"Describe a situation where you had to refactor legacy code."
         ]
         
-        # Customize based on skills if available
+        # Customizing based on skills if available
         if skills:
             skill_specific = []
-            for skill in skills[:3]:  # Top 3 skills
+            for skill in skills[:3]:
                 skill_specific.append(f"How would you implement a complex feature using {skill}? Walk me through your approach.")
             base_questions[:len(skill_specific)] = skill_specific
         

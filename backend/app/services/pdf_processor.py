@@ -6,7 +6,7 @@ class PDFProcessor:
         pass
     
     def extract_text_from_pdf(self, file_path: str) -> str:
-        """Extract text from PDF file using PyMuPDF"""
+        # Extract text from PDF file using PyMuPDF
         try:
             doc = fitz.open(file_path)
             text = ""
@@ -22,7 +22,7 @@ class PDFProcessor:
             raise Exception(f"Error extracting text from PDF: {str(e)}")
     
     def is_valid_pdf(self, file_path: str) -> bool:
-        """Check if the file is a valid PDF"""
+        # Check if the file is a valid PDF
         try:
             doc = fitz.open(file_path)
             doc.close()

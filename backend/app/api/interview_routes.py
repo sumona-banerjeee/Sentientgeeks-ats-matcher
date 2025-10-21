@@ -13,9 +13,9 @@ async def generate_interview_questions(
     regenerate: bool = False,
     db: Session = Depends(get_db)
 ):
-    """Generate interview questions based on JD for the session"""
+    #Generate interview questions based on JD for the session
     
-    # Get JD data
+    # Getting the JD data
     jd = db.query(JobDescription).filter(
         JobDescription.session_id == session_id,
         JobDescription.is_approved == True
@@ -43,7 +43,7 @@ async def generate_interview_questions(
                 detail="Failed to generate sufficient interview questions"
             )
         
-        # Get job info for response
+        # Getting info for job info for peroviding response
         job_info = {
             "job_title": jd.structured_data.get('job_title', 'Unknown Position'),
             "company": jd.structured_data.get('company', 'Company'),
@@ -62,7 +62,7 @@ async def generate_interview_questions(
         }
         
     except Exception as e:
-        print(f"❌ Error generating interview questions: {str(e)}")
+        print(f"Error generating interview questions: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to generate interview questions: {str(e)}"
@@ -71,6 +71,5 @@ async def generate_interview_questions(
 @router.get("/questions/{session_id}")
 async def get_cached_questions(session_id: str, db: Session = Depends(get_db)):
     """Get previously generated questions if available"""
-    # This could be extended to cache questions in database
-    # For now, it will trigger regeneration
+    # This could be extended to cache questions in database, at this moment it will trigger regeneration
     return await generate_interview_questions(session_id, regenerate=False, db=db)

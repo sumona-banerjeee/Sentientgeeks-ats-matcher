@@ -17,11 +17,11 @@ class User(Base):
     last_login = Column(DateTime)
     
     def set_password(self, password: str):
-        """Hash and set password"""
+        #Hashing and setting password
         self.password_hash = hashlib.sha256(password.encode()).hexdigest()
     
     def check_password(self, password: str) -> bool:
-        """Verify password"""
+        #Verifying password
         return self.password_hash == hashlib.sha256(password.encode()).hexdigest()
     
     def to_dict(self):

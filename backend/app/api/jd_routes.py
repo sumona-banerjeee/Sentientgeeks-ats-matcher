@@ -19,12 +19,12 @@ async def upload_jd(
     text: str = Form(None),
     db: Session = Depends(get_db)
 ):
-    """Upload and process job description"""
+    #Uploading and processing the job description
     session_id = str(uuid.uuid4())
     
     try:
         if file:
-            # Handle file upload
+            # Handling the file upload section
             file_path = f"./data/uploads/jds/{session_id}_{file.filename}"
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             
@@ -32,7 +32,7 @@ async def upload_jd(
                 content = await file.read()
                 f.write(content)
             
-            # Extract text from PDF
+            # It will extract the text from PDF
             pdf_processor = PDFProcessor()
             jd_text = pdf_processor.extract_text_from_pdf(file_path)
         elif text:
@@ -40,7 +40,7 @@ async def upload_jd(
         else:
             raise HTTPException(status_code=400, detail="Either file or text must be provided")
         
-        # Create JD record
+        # Creating JD record
         jd = JobDescription(
             original_text=jd_text,
             session_id=session_id,
@@ -50,11 +50,11 @@ async def upload_jd(
         db.commit()
         db.refresh(jd)
         
-        # Check if JD needs structuring
+        # Checking if JD needs to be structure or not
         llm_service = LLMService()
         structured_data = await llm_service.structure_job_description(jd_text)
         
-        # Create structuring session
+        # Creating the structuring session
         structuring_session = JDStructuringSession(
             session_id=session_id,
             jd_id=jd.id,
@@ -79,7 +79,7 @@ async def approve_structure(
     approval_data: Dict[str, Any],
     db: Session = Depends(get_db)
 ):
-    """Approve or request changes to structured JD"""
+    #Approve or request changes to structured JD
     
     structuring_session = db.query(JDStructuringSession).filter(
         JDStructuringSession.session_id == session_id
@@ -106,7 +106,7 @@ async def approve_structure(
         }
     
     else:
-        # User wants changes
+        # If user wants to make some of the changes
         feedback = approval_data.get("feedback", "")
         
         llm_service = LLMService()
@@ -132,7 +132,7 @@ async def set_skills_weightage(
     skills_data: Dict[str, int],
     db: Session = Depends(get_db)
 ):
-    """Set skills weightage for the JD"""
+    #Set skills weightage for the JD
     
     jd = db.query(JobDescription).filter(JobDescription.session_id == session_id).first()
     if not jd:
@@ -149,7 +149,7 @@ async def set_skills_weightage(
 
 @router.get("/session/{session_id}")
 async def get_jd_session(session_id: str, db: Session = Depends(get_db)):
-    """Get JD session details"""
+    #Getting the JD session details
     
     jd = db.query(JobDescription).filter(JobDescription.session_id == session_id).first()
     if not jd:
