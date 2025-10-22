@@ -9,7 +9,7 @@ class Settings:
     
     # Ollama Configuration
     USE_OLLAMA: bool = os.getenv("USE_OLLAMA", "true").lower() == "true"
-    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "https://viewer-resist-instructors-islands.trycloudflare.com/")
+    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gemma3:27b")
     OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", "300"))
     PERPLEXITY_API_KEY: str = os.getenv("PERPLEXITY_API_KEY", "")
