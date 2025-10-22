@@ -139,6 +139,10 @@ function displayJDLibraryModal(jds, userRole) {
 /**
  * Use JD from Library
  */
+/**
+ * Use JD from Library - FIXED VERSION
+ * Now properly navigates to Step 2 (Review & Approve) instead of Step 3
+ */
 async function useJDFromLibrary(jdId) {
     try {
         Utils.showLoading('Loading JD from library...');
@@ -153,46 +157,47 @@ async function useJDFromLibrary(jdId) {
             const newSessionId = generateSessionId();
             appState.setSessionId(newSessionId);
             
-            // Store JD data in appState
+            // Store JD data in appState (pre-approved structure)
             appState.jdData = {
                 structured_data: jd.structured_data,
                 session_id: newSessionId,
-                skills_weightage: jd.skills_weightage || {}
+                skills_weightage: jd.skills_weightage || {},
+                isFromLibrary: true,  // Flag to indicate this is from library
+                jdLibraryId: jd.id
             };
-            
-            // Track usage
-            await Utils.makeRequest(`/api/jd-library/use/${jdId}`, {
-                method: 'POST',
-                body: { session_id: newSessionId }
-            });
             
             // Close library modal FIRST
             closeJDLibraryModal();
             
-            // CRITICAL: Simulate the JD approval flow
-            // Step 1: Display structured JD in Step 2
+            // CRITICAL FIX: Display structured JD in Step 2 WITHOUT auto-approval
             displayStructuredJD(jd.structured_data);
             
-            // Step 2: Auto-approve to save to session
-            const approvalResponse = await Utils.makeRequest(`/api/jd/approve-structure/${newSessionId}`, {
-                method: 'POST',
-                body: {
-                    approved: true,
-                    structured_data: jd.structured_data
-                }
-            });
-            
-            // Step 3: Generate skills weightage form with pre-configured weights
-            await generateSkillsWeightageForm(jd.structured_data, jd.skills_weightage);
-            
-            // Step 4: Navigate to skills section (Step 3)
-            appState.currentStep = 3;
+            // FIXED: Navigate to Step 2 (Review & Approve) instead of Step 3
+            appState.currentStep = 2;
             appState.updateUI();
             
             // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
             
-            Utils.showToast(`✅ JD "${jd.jd_name}" loaded successfully!`, 'success');
+            // Show informative message
+            Utils.showToast(`✅ JD "${jd.jd_name}" loaded! Please review and approve.`, 'success');
+            
+            // Optional: Add a helper message in the UI
+            const structuredDisplay = document.getElementById('structured-jd-display');
+            if (structuredDisplay) {
+                const helperMessage = document.createElement('div');
+                helperMessage.className = 'library-jd-notice';
+                helperMessage.style.cssText = 'background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #2196f3;';
+                helperMessage.innerHTML = `
+                    <p style="margin: 0; color: #1976d2; font-weight: 500;">
+                        📚 This JD was loaded from your library: <strong>${jd.jd_name}</strong>
+                    </p>
+                    <p style="margin: 8px 0 0 0; color: #1976d2; font-size: 13px;">
+                        Please review the structure below and click "Approve Structure" to continue.
+                    </p>
+                `;
+                structuredDisplay.insertBefore(helperMessage, structuredDisplay.firstChild);
+            }
         }
         
     } catch (error) {
@@ -202,6 +207,76 @@ async function useJDFromLibrary(jdId) {
         Utils.hideLoading();
     }
 }
+
+/**
+ * Modified approveStructure function to handle library JDs
+ * This ensures proper workflow when approving library JDs
+ */
+/**
+ * Modified approveStructure function to handle library JDs
+ * This ensures proper workflow when approving library JDs
+ */
+async function approveStructure() {
+    try {
+        Utils.showLoading('Approving structure...');
+        
+        // Check if this is a library JD that hasn't been saved to session yet
+        if (appState.jdData && appState.jdData.isFromLibrary) {
+            // For library JDs, directly approve without upload step
+            const sessionId = appState.getSessionId();
+            
+            // Directly approve with structured data from library
+            const response = await Utils.makeRequest(`/api/jd/approve-structure/${sessionId}`, {
+                method: 'POST',
+                body: {
+                    approved: true,
+                    structured_data: appState.jdData.structured_data
+                }
+            });
+            
+            if (response.ready_for_skills_weightage || response.status === 'approved') {
+                // Generate skills weightage form with pre-configured weights
+                await generateSkillsWeightageForm(
+                    appState.jdData.structured_data,
+                    appState.jdData.skills_weightage
+                );
+                
+                // Remove the library flag
+                delete appState.jdData.isFromLibrary;
+                
+                // Move to Step 3
+                appState.nextStep();
+                Utils.showToast('Structure approved! Please set skills weightage.', 'success');
+            }
+        } else {
+            // Normal JD approval flow (not from library)
+            const sessionResponse = await Utils.makeRequest(`/api/jd/session/${appState.getSessionId()}`);
+            const currentStructure = sessionResponse.structuring_session?.current_structure;
+            console.log('Current structure before approval:', currentStructure);
+            
+            const response = await Utils.makeRequest(`/api/jd/approve-structure/${appState.getSessionId()}`, {
+                method: 'POST',
+                body: { approved: true }
+            });
+            
+            if (response.ready_for_skills_weightage) {
+                appState.jdData = response;
+                await generateSkillsWeightageForm(currentStructure);
+                appState.nextStep();
+                Utils.showToast('Structure approved! Please set skills weightage.', 'success');
+            }
+        }
+    } catch (error) {
+        console.error('Error approving structure:', error);
+        Utils.showToast(error.message, 'error');
+    } finally {
+        Utils.hideLoading();
+    }
+}
+
+
+
+
 
 /**
  * Save current JD to library
