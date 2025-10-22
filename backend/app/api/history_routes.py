@@ -192,8 +192,8 @@ async def get_user_stats(
         if current_user.role == "admin":
             # Admin sees ALL users' numeric results
             all_history = db.query(MatchingHistory).all()
-            
             user_stats = {}
+            
             for record in all_history:
                 user_name = record.user_name or "Guest"
                 if user_name not in user_stats:
@@ -202,6 +202,7 @@ async def get_user_stats(
                         "total_resumes": 0,
                         "total_matches": 0
                     }
+                
                 user_stats[user_name]["total_sessions"] += 1
                 user_stats[user_name]["total_resumes"] += record.total_resumes
                 user_stats[user_name]["total_matches"] += record.successful_matches
@@ -224,6 +225,7 @@ async def get_user_stats(
             total_resumes = sum(h.total_resumes for h in history_records)
             total_matches = sum(h.successful_matches for h in history_records)
             
+            # ✅ COMPLETE RETURN STATEMENT
             return {
                 "status": "success",
                 "user": current_user.username,
@@ -237,8 +239,58 @@ async def get_user_stats(
                     )
                 }
             }
+        
+        # ✅ ADD FALLBACK FOR OTHER ROLES
+        else:
+            raise HTTPException(
+                status_code=403, 
+                detail="Insufficient permissions to view statistics"
+            )
     
     except HTTPException as e:
         raise e
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/delete/{session_id}")
+async def delete_history_record(
+    session_id: str,
+    db: Session = Depends(get_db),
+    session_token: Optional[str] = Cookie(None)
+):
+    """Delete a history record with permission check"""
+    try:
+        from ..api.user_routes import get_current_user_from_session
+        current_user = get_current_user_from_session(session_token, db)
+        
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        history_record = db.query(MatchingHistory).filter(
+            MatchingHistory.session_id == session_id
+        ).first()
+        
+        if not history_record:
+            raise HTTPException(status_code=404, detail="History not found")
+        
+        # Permission check: Only admin or record owner can delete
+        if current_user.role != "admin" and history_record.user_id != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only delete your own history records"
+            )
+        
+        db.delete(history_record)
+        db.commit()
+        
+        return {
+            "status": "success",
+            "message": "History record deleted successfully"
+        }
+    
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

@@ -35,6 +35,14 @@ function handleResumeFilesSelect(event) {
         return;
     }
     
+    // Check max limit
+    const MAX_FILES = 500;
+    if (files.length > MAX_FILES) {
+        Utils.showToast(`Too many files! Maximum ${MAX_FILES} resumes allowed per upload.`, 'error');
+        event.target.value = ''; // Clear selection
+        return;
+    }
+    
     // Validate files
     const validFiles = [];
     const invalidFiles = [];
@@ -51,22 +59,28 @@ function handleResumeFilesSelect(event) {
         }
     });
     
-    // Display file list
-    let html = '<h4>Selected Files:</h4>';
+    // Display file list summary
+    let html = `<h4>Selected Files: ${files.length}</h4>`;
     
     if (validFiles.length > 0) {
-        html += '<div class="valid-files"><h5 class="text-success">✅ Valid Files:</h5><ul>';
-        validFiles.forEach(file => {
-            const size = (file.size / (1024 * 1024)).toFixed(2);
-            html += `<li>${file.name} (${size} MB)</li>`;
-        });
-        html += '</ul></div>';
+        const totalSize = validFiles.reduce((sum, file) => sum + file.size, 0);
+        const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+        
+        html += `
+            <div class="valid-files" style="background: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                <h5 class="text-success" style="margin: 0 0 10px 0;">✅ Valid Files: ${validFiles.length}</h5>
+                <p style="margin: 5px 0;"><strong>Total Size:</strong> ${totalSizeMB} MB</p>
+                <p style="margin: 5px 0; font-size: 13px; color: #155724;">
+                    Files will be processed in batches of 10 for optimal performance.
+                </p>
+            </div>
+        `;
     }
     
     if (invalidFiles.length > 0) {
-        html += '<div class="invalid-files"><h5 class="text-danger">❌ Invalid Files:</h5><ul>';
+        html += '<div class="invalid-files" style="background: #f8d7da; padding: 15px; border-radius: 8px;"><h5 class="text-danger" style="margin: 0 0 10px 0;">❌ Invalid Files: ' + invalidFiles.length + '</h5><ul style="margin: 0; padding-left: 20px;">';
         invalidFiles.forEach(item => {
-            html += `<li>${item.file.name} - ${item.error}</li>`;
+            html += `<li style="margin: 5px 0;">${item.file.name} - ${item.error}</li>`;
         });
         html += '</ul></div>';
     }

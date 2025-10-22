@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -15,10 +15,7 @@
                     <h1 class="logo">SentientGeeks ATS</h1>
                     <p class="tagline">AI-Powered Resume Matching System</p>
                 </div>
-                <!-- User Info & Logout Button -->
-                <div id="user-info-header" style="text-align: right; color: white;">
-                    <!-- Will be populated by JavaScript -->
-                </div>
+                <div id="user-info-header" style="text-align: right; color: white;"></div>
             </div>
         </header>
 
@@ -30,7 +27,12 @@
                         <!-- Left: Job Description Upload -->
                         <div class="jd-upload-area-wrapper">
                             <div class="card">
-                                <h2>Step 1: Upload Job Description</h2>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                    <h2 style="margin: 0;">Step 1: Upload Job Description</h2>
+                                    <button onclick="showJDLibrary()" class="btn btn-secondary" style="padding: 10px 20px;">
+                                        📚 JD Library
+                                    </button>
+                                </div>
                                 <div class="upload-area" id="jd-upload-area">
                                     <div class="upload-options">
                                         <div class="upload-option">
@@ -79,6 +81,9 @@
                                 <div class="action-buttons">
                                     <button id="approve-structure-btn" class="btn btn-success">Approve Structure</button>
                                     <button id="request-changes-btn" class="btn btn-warning">Request Changes</button>
+                                    <button onclick="saveCurrentJDToLibrary()" class="btn btn-secondary" style="background:#6c757d;">
+                                        💾 Save to Library
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -90,7 +95,7 @@
                     <div class="card">
                         <h2>Step 3: Set Skills Weightage</h2>
                         <div id="skills-content">
-                            <p class="instruction">Assign weightage (1-100) to skills based on priority</p>
+                            <p class="instruction">Assign weightage (1–100) to skills based on priority</p>
                             <div id="skills-weightage-form"></div>
                             <button id="set-weightage-btn" class="btn btn-primary">Set Weightage & Continue</button>
                         </div>
@@ -100,29 +105,20 @@
                 <!-- Step 4: Resume Upload -->
                 <section id="resume-section" class="section">
                     <div class="card">
-                        <h2>Step 4: Upload Resumes</h2>
+                        <h2>Step 4: Upload Resumes (Up to 500 files)</h2>
                         <div class="upload-area">
                             <input type="file" id="resume-files" multiple accept=".pdf" style="display: none;">
                             <div class="upload-info">
                                 <button type="button" class="btn btn-primary" onclick="document.getElementById('resume-files').click()">
-                                    Select Resume Files
+                                    Select Resume Files (Max 500)
                                 </button>
-                                <p class="upload-note">You can select multiple files at once (up to 50 resumes)</p>
+                                <p class="upload-note">You can select up to 500 PDF resumes at once. Files will be processed in batches.</p>
                             </div>
                             <div id="selected-files-list"></div>
-                            
-                            <!-- ADDED: Upload Status Container -->
                             <div id="upload-status" style="display: none; margin-top: 20px;">
-                                <div id="upload-progress" style="background: #f0f0f0; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-                                    <!-- Progress information will be inserted here by JavaScript -->
-                                </div>
+                                <div id="upload-progress" style="background: #f0f0f0; border-radius: 8px; padding: 15px; margin-bottom: 15px;"></div>
                             </div>
-                            
-                            <!-- ADDED: Resumes List Container -->
-                            <div id="resumes-list" style="margin-top: 20px;">
-                                <!-- Resume results will appear here after upload -->
-                            </div>
-                            
+                            <div id="resumes-list" style="margin-top: 20px;"></div>
                             <button id="upload-resumes-btn" class="btn btn-secondary" disabled>Upload & Process Resumes</button>
                         </div>
                     </div>
@@ -141,21 +137,21 @@
             </div>
         </main>
 
-        <!-- Loading Overlay -->
         <div id="loading-overlay" class="loading-overlay">
             <div class="spinner"></div>
             <p id="loading-message">Processing...</p>
         </div>
 
-        <!-- Toast Notifications -->
         <div id="toast-container" class="toast-container"></div>
     </div>
 
+    <!-- Scripts -->
     <script src="static/js/main.js"></script>
     <script src="static/js/jd-processor.js"></script>
     <script src="static/js/resume-uploader.js"></script>
     <script src="static/js/matcher.js?v=3.0"></script>
     <script src="static/js/history-sidebar.js"></script>
+    <script src="static/js/jd-library.js"></script>
 
     <!-- 🔥 CORRECTED CANDIDATE DETAILS MODAL -->
     <script>

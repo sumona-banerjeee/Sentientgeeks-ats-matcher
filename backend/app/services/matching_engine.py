@@ -419,61 +419,95 @@ class MatchingEngine:
         return final_skills_score
     
 
-    def _calculate_experience_requirement_score(self, total_experience: float, jd_experience_required: float) -> float:
-    
-        # Case 1: JD doesn't specify experience requirement
+    def _calculate_experience_requirement_score(
+        self,
+        total_experience: float,
+        jd_experience_required: float
+    ) -> float:
+
+        print("\n[Experience Requirement Scoring]")
+        print(f"   Candidate Experience: {total_experience} years")
+        print(f"   JD Required Experience: {jd_experience_required} years")
+
+        # Safety check — handle None or invalid values
+        if total_experience is None:
+            total_experience = 0.0
+        if jd_experience_required is None:
+            jd_experience_required = 0.0
+
+        # CASE 1: JD doesn’t specify experience requirement
         if jd_experience_required == 0:
-            # Reward candidates with more experience
+            print("No required experience — scoring based on candidate experience only.")
             if total_experience == 0:
-                return 50.0  # Neutral for fresh graduates
+                score = 60.0  # Neutral for fresh graduates
             elif total_experience >= 5:
-                return 100.0  # Excellent for 5+ years
+                score = 95.0  # Excellent for 5+ years
             elif total_experience >= 3:
-                return 85.0  # Very good for 3-5 years
+                score = 85.0  # Very good for 3–5 years
             elif total_experience >= 2:
-                return 75.0  # Good for 2-3 years
+                score = 75.0  # Good for 2–3 years
             elif total_experience >= 1:
-                return 65.0  # Moderate for 1-2 years
+                score = 70.0  # Moderate for 1–2 years
             else:
-                return 55.0  # Slightly above neutral
-    
-        # Case 2: JD specifies experience requirement
+                score = 65.0  # Acceptable for <1 year
+            print(f"Score: {score}/100")
+            return score
+
+        # CASE 2: JD specifies experience requirement
         else:
-            # Meets or exceeds requirement significantly (150%+)
+            # Exceeds requirement by 50%+
             if total_experience >= jd_experience_required * 1.5:
-                return 100.0
-        
-            # Meets or slightly exceeds requirement (100-150%)
+                score = 100.0
+                print(f"Exceeds requirement significantly — Score: {score}/100")
+                return score
+
+            # Meets or slightly exceeds requirement (100–150%)
             elif total_experience >= jd_experience_required:
                 excess_ratio = (total_experience - jd_experience_required) / (jd_experience_required * 0.5)
-                return min(100.0, 85 + (excess_ratio * 15))
-        
-            # 80-100% of requirement
+                score = min(100.0, 85 + (excess_ratio * 15))
+                print(f"Meets or exceeds requirement — Score: {score}/100")
+                return score
+
+            # 80–100% of requirement (close match)
             elif total_experience >= jd_experience_required * 0.8:
                 ratio = total_experience / jd_experience_required
-                return 60 + ((ratio - 0.8) * 125)
-        
-            # 50-80% of requirement
+                score = 60 + ((ratio - 0.8) * 125)  # scales between 60–85
+                print(f"80-100% of requirement — Score: {score}/100")
+                return score
+
+            # 50–80% of requirement
             elif total_experience >= jd_experience_required * 0.5:
                 ratio = total_experience / jd_experience_required
-                return 30 + ((ratio - 0.5) * 100)
-        
-            # Less than 50% of requirement
-            else:
+                score = 30 + ((ratio - 0.5) * 100)  # scales between 30–60
+                print(f" 50-80% of requirement — Score: {score}/100")
+                return score
+
+            # Below 50% of requirement but has some experience
+            elif total_experience > 0:
                 ratio = total_experience / jd_experience_required
-                return ratio * 60  # 0-30 range
+                score = max(10.0, ratio * 60)  # ensures non-zero score
+                print(f"Below 50% requirement — Score: {score}/100")
+                return score
+
+            # No experience when experience is required
+            else:
+                score = 10.0  # minimal score to avoid 0%
+                print(f"No experience for required JD — Score: {score}/100")
+                return score
+
         
     
     def _calculate_enhanced_experience_score(self, resume_data: Dict, job_priorities: List[Dict], jd_experience_required: float) -> float:
-    
+        """Calculate enhanced experience score"""
+        
         experience_timeline = resume_data.get("experience_timeline", [])
         total_experience = resume_data.get("total_experience", 0)
-    
+        
         print(f"[ENHANCED EXPERIENCE SCORING]")
         print(f"   Total Experience: {total_experience} years")
         print(f"   JD Required Experience: {jd_experience_required} years")
         print(f"   Experience Timeline: {len(experience_timeline)} jobs")
-    
+        
         # Handle fresh graduates
         if not experience_timeline or total_experience == 0:
             if jd_experience_required == 0:
@@ -482,34 +516,34 @@ class MatchingEngine:
             else:
                 print("   Fresh Graduate but Experience Required: 10/100")
                 return 10.0  # Low score when experience is required
-    
+        
         # STEP 1: Experience Requirement Matching Score (40% weight)
-        experience_requirement_score = self.calculate_experience_requirement_score(total_experience, jd_experience_required)
-    
+        experience_requirement_score = self._calculate_experience_requirement_score(total_experience, jd_experience_required)
+        
         # STEP 2: Relevant Experience Score (40% weight)
-        relevant_experience_score = self.calculate_relevant_experience_score(experience_timeline, job_priorities)
-    
+        relevant_experience_score = self._calculate_relevant_experience_score(experience_timeline, job_priorities)
+        
         # STEP 3: Recent/Current Experience Bonus (20% weight)
-        recent_experience_bonus = self.calculate_recent_experience_bonus(experience_timeline, job_priorities)
-    
+        recent_experience_bonus = self._calculate_recent_experience_bonus(experience_timeline, job_priorities)
+        
         # Final experience score calculation
         final_experience_score = (
             (experience_requirement_score * 0.4) +
             (relevant_experience_score * 0.4) +
             (recent_experience_bonus * 0.2)
         )
-    
-        print(f" Experience Breakdown:")
+        
+        print(f"   Experience Breakdown:")
         print(f"      • Requirement Match: {experience_requirement_score:.1f}/100 (40% weight)")
         print(f"      • Relevant Experience: {relevant_experience_score:.1f}/100 (40% weight)")
         print(f"      • Recent/Current Bonus: {recent_experience_bonus:.1f}/100 (20% weight)")
         print(f"      • Final Experience Score: {final_experience_score:.1f}/100")
-    
+        
         return min(100, max(0, final_experience_score))
 
 
     def _calculate_relevant_experience_score(self, experience_timeline: List[Dict], job_priorities: List[Dict]) -> float:
-        # Calculate score based on relevant experience in priority technologies
+        """Calculate score based on relevant experience in priority technologies"""
         
         if not experience_timeline or not job_priorities:
             return 0.0
@@ -553,12 +587,12 @@ class MatchingEngine:
                             break
                 
                 # Level 2: Role title matching (enhanced)
-                role_keywords = role_name.lower().replace(' developer', '').replace(' engineer', '').split()
+                role_keywords = role_name.lower().replace(' developer', '').replace(' engineer', '').replace(' analyst', '').split()
                 for keyword in role_keywords:
                     if keyword in exp_role:
                         # More specific matches get higher scores
-                        if keyword in ['python', 'java', 'javascript', 'react', 'angular', '.net', 'php']:
-                            role_match_score += 2  # Technology-specific roles
+                        if keyword in ['python', 'java', 'javascript', 'react', 'angular', '.net', 'php', 'business', 'analyst']:
+                            role_match_score += 2  # Technology/role-specific
                         elif keyword not in ['developer', 'engineer', 'software', 'senior', 'junior']:
                             role_match_score += 1  # Other relevant keywords
                 
