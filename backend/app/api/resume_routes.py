@@ -21,9 +21,6 @@ async def upload_resumes(
     files: List[UploadFile] = File(...),
     db: Session = Depends(get_db)
 ):
-   
-    
-    
     if len(files) > MAX_RESUMES_PER_UPLOAD:
         raise HTTPException(
             status_code=400, 
@@ -41,14 +38,22 @@ async def upload_resumes(
     print(f"Session ID: {session_id}")
     print(f"{'='*60}\n")
     
-    # CRITICAL: Get ALL existing resumes for this session BEFORE processing
+    # CRITICAL FIX: Get ALL existing resumes and normalize filenames
     existing_resumes = db.query(Resume).filter(
         Resume.session_id == session_id
     ).all()
     
-    existing_filenames = {resume.filename.lower().strip() for resume in existing_resumes}
+    # Create normalized filename set (lowercase + stripped)
+    existing_filenames = {
+        resume.filename.lower().strip().replace(' ', '_') 
+        for resume in existing_resumes
+    }
     
-    print(f"Found {len(existing_filenames)} existing resumes in this session")
+    print(f"📋 Found {len(existing_filenames)} existing resumes in session")
+    print(f"   Existing files: {list(existing_filenames)[:5]}")
+    
+    # NEW: Track filenames being processed in current batch
+    current_batch_filenames = set()
     
     # Process in batches of 10 for better performance
     BATCH_SIZE = 10
@@ -59,29 +64,40 @@ async def upload_resumes(
         batch_end = min((batch_num + 1) * BATCH_SIZE, len(files))
         batch_files = files[batch_start:batch_end]
         
-        print(f"\n Processing Batch {batch_num + 1}/{total_batches} ({len(batch_files)} resumes)...")
+        print(f"\n📦 Processing Batch {batch_num + 1}/{total_batches} ({len(batch_files)} resumes)...")
         
-        # Process batch
         for file in batch_files:
             try:
                 # ENHANCED: Normalize filename for comparison
-                normalized_filename = file.filename.lower().strip()
+                original_filename = file.filename
+                normalized_filename = original_filename.lower().strip().replace(' ', '_')
                 
-                # CHECK FOR DUPLICATES (case-insensitive)
+                # CHECK 1: Already exists in database?
                 if normalized_filename in existing_filenames:
-                    print(f" DUPLICATE: {file.filename} - SKIPPING")
+                    print(f"⚠️  DUPLICATE (DB): {original_filename} - SKIPPING")
                     skipped_duplicates.append({
-                        "filename": file.filename,
-                        "reason": "Already uploaded in this session",
+                        "filename": original_filename,
+                        "reason": "Already uploaded in this session (database)",
                         "status": "skipped"
                     })
                     continue
                 
-                # CRITICAL: Add to existing set immediately to prevent duplicates within same batch
-                existing_filenames.add(normalized_filename)
+                # CHECK 2: Already processed in current batch?
+                if normalized_filename in current_batch_filenames:
+                    print(f"⚠️  DUPLICATE (BATCH): {original_filename} - SKIPPING")
+                    skipped_duplicates.append({
+                        "filename": original_filename,
+                        "reason": "Duplicate in current upload batch",
+                        "status": "skipped"
+                    })
+                    continue
                 
-                # Save file
-                file_path = f"./data/uploads/resumes/{session_id}_{file.filename}"
+                # CRITICAL: Add to current batch tracker IMMEDIATELY
+                current_batch_filenames.add(normalized_filename)
+                existing_filenames.add(normalized_filename)  # Also update main set
+                
+                # Save file with ORIGINAL filename (preserve user's naming)
+                file_path = f"./data/uploads/resumes/{session_id}_{original_filename}"
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
                 
                 with open(file_path, "wb") as f:
@@ -105,9 +121,9 @@ async def upload_resumes(
                 else:
                     structured_data['skills'] = []
                 
-                # Create database record
+                # Create database record with ORIGINAL filename
                 resume = Resume(
-                    filename=file.filename,  # Keep original filename
+                    filename=original_filename,  # Keep original filename for display
                     file_path=file_path,
                     extracted_text=resume_text,
                     structured_data=structured_data,
@@ -127,32 +143,35 @@ async def upload_resumes(
                     "processing_status": "success"
                 })
                 
-                print(f"SUCCESS: {file.filename}")
+                print(f"✅ SUCCESS: {original_filename}")
                 
             except Exception as e:
-                print(f" ERROR: {file.filename} - {str(e)}")
+                print(f"❌ ERROR: {file.filename} - {str(e)}")
                 failed_resumes.append({
                     "filename": file.filename,
                     "processing_status": "failed",
                     "error": str(e)
                 })
-                # Continue processing other files
+                # Remove from batch tracker if processing failed
+                if normalized_filename in current_batch_filenames:
+                    current_batch_filenames.remove(normalized_filename)
+                    existing_filenames.remove(normalized_filename)
                 continue
         
         # Commit batch
         try:
             db.commit()
-            print(f" Batch {batch_num + 1} committed to database")
+            print(f"✅ Batch {batch_num + 1} committed to database")
         except Exception as e:
-            print(f"Batch commit error: {e}")
+            print(f"❌ Batch commit error: {e}")
             db.rollback()
     
     print(f"\n{'='*60}")
-    print(f"UPLOAD SUMMARY:")
-    print(f"   Total Files: {len(files)}")
-    print(f"   Successfully Processed: {len(processed_resumes)}")
-    print(f"   Duplicates Skipped: {len(skipped_duplicates)}")
-    print(f"   Failed: {len(failed_resumes)}")
+    print(f"📊 UPLOAD SUMMARY:")
+    print(f"   Total Files Uploaded: {len(files)}")
+    print(f"   ✅ Successfully Processed: {len(processed_resumes)}")
+    print(f"   ⚠️  Duplicates Skipped: {len(skipped_duplicates)}")
+    print(f"   ❌ Failed: {len(failed_resumes)}")
     print(f"{'='*60}\n")
     
     return {

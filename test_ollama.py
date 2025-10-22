@@ -10,31 +10,31 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def test_ollama_connection():
-    print("\n" + "="*60)
-    print("🧪 TESTING OLLAMA CONNECTION")
-    print("="*60 + "\n")
+    print("\n" + " "*60)
+    print("TESTING OLLAMA CONNECTION")
+    print(" "*60 + "\n")
     
     try:
         # Initialize service
         ollama = get_ollama_service()
         
         # Health check
-        print("1️⃣ Testing health check...")
+        print("1️. Testing health check...")
         if ollama.health_check():
-            print("   ✅ Health check passed\n")
+            print(" Health check passed\n")
         else:
-            print("   ❌ Health check failed\n")
+            print(" Health check failed\n")
             return False
         
         # Test simple prompt
-        print("2️⃣ Testing simple prompt...")
+        print("2️. Testing simple prompt...")
         test_prompt = "Say 'Hello from Ollama!' in exactly those words."
         response = ollama._make_request(test_prompt, temperature=0.0)
         print(f"   Response: {response[:100]}...")
-        print("   ✅ Simple prompt test passed\n")
+        print(" Simple prompt test passed\n")
         
         # Test JSON extraction
-        print("3️⃣ Testing JSON extraction...")
+        print("3️. Testing JSON extraction...")
         json_prompt = """Return this exact JSON:
 {
     "status": "working",
@@ -47,17 +47,17 @@ def test_ollama_connection():
         
         if "error" not in parsed:
             print(f"   Parsed JSON: {parsed}")
-            print("   ✅ JSON extraction test passed\n")
+            print("JSON extraction test passed\n")
         else:
-            print(f"   ⚠️ JSON parsing issue: {parsed}")
+            print(f" JSON parsing issue: {parsed}")
         
-        print("="*60)
-        print("✅ ALL TESTS PASSED - Ollama is ready!")
-        print("="*60 + "\n")
+        print(" "*60)
+        print(" ALL TESTS PASSED - Ollama is ready!")
+        print(" "*60 + "\n")
         return True
     
     except Exception as e:
-        print(f"\n❌ TEST FAILED: {str(e)}\n")
+        print(f"\nTEST FAILED: {str(e)}\n")
         import traceback
         traceback.print_exc()
         return False

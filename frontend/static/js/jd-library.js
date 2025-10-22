@@ -153,10 +153,11 @@ async function useJDFromLibrary(jdId) {
             const newSessionId = generateSessionId();
             appState.setSessionId(newSessionId);
             
-            // Store JD data
+            // Store JD data in appState
             appState.jdData = {
                 structured_data: jd.structured_data,
-                session_id: newSessionId
+                session_id: newSessionId,
+                skills_weightage: jd.skills_weightage || {}
             };
             
             // Track usage
@@ -165,28 +166,37 @@ async function useJDFromLibrary(jdId) {
                 body: { session_id: newSessionId }
             });
             
-            // Display structured JD
-            displayStructuredJD(jd.structured_data);
-            
-            // Generate skills weightage form with pre-configured weights
-            if (jd.skills_weightage && Object.keys(jd.skills_weightage).length > 0) {
-                await generateSkillsWeightageForm(jd.structured_data, jd.skills_weightage);
-            } else {
-                await generateSkillsWeightageForm(jd.structured_data);
-            }
-            
-            // Close library modal
+            // Close library modal FIRST
             closeJDLibraryModal();
             
-            // Move to skills section
+            // CRITICAL: Simulate the JD approval flow
+            // Step 1: Display structured JD in Step 2
+            displayStructuredJD(jd.structured_data);
+            
+            // Step 2: Auto-approve to save to session
+            const approvalResponse = await Utils.makeRequest(`/api/jd/approve-structure/${newSessionId}`, {
+                method: 'POST',
+                body: {
+                    approved: true,
+                    structured_data: jd.structured_data
+                }
+            });
+            
+            // Step 3: Generate skills weightage form with pre-configured weights
+            await generateSkillsWeightageForm(jd.structured_data, jd.skills_weightage);
+            
+            // Step 4: Navigate to skills section (Step 3)
             appState.currentStep = 3;
             appState.updateUI();
             
-            Utils.showToast(`JD "${jd.jd_name}" loaded successfully!`, 'success');
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            Utils.showToast(`✅ JD "${jd.jd_name}" loaded successfully!`, 'success');
         }
         
     } catch (error) {
-        console.error('Error using JD from library:', error);
+        console.error('❌ Error using JD from library:', error);
         Utils.showToast('Error loading JD: ' + error.message, 'error');
     } finally {
         Utils.hideLoading();
