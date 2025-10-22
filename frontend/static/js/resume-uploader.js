@@ -29,6 +29,8 @@ function handleResumeFilesSelect(event) {
     const container = document.getElementById('selected-files-list');
     const uploadBtn = document.getElementById('upload-resumes-btn');
     
+    console.log(`📁 Files selected: ${files.length}`);
+    
     if (files.length === 0) {
         if (container) container.innerHTML = '';
         if (uploadBtn) uploadBtn.disabled = true;
@@ -59,39 +61,89 @@ function handleResumeFilesSelect(event) {
         }
     });
     
+    console.log(`✅ Valid files: ${validFiles.length}, ❌ Invalid: ${invalidFiles.length}`);
+    
     // Display file list summary
-    let html = `<h4>Selected Files: ${files.length}</h4>`;
+    let html = `<div style="margin-top: 20px;">`;
+    html += `<h4 style="margin-bottom: 15px; color: #333;">Selected Files: ${files.length}</h4>`;
     
     if (validFiles.length > 0) {
         const totalSize = validFiles.reduce((sum, file) => sum + file.size, 0);
         const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(2);
         
         html += `
-            <div class="valid-files" style="background: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
-                <h5 class="text-success" style="margin: 0 0 10px 0;">✅ Valid Files: ${validFiles.length}</h5>
-                <p style="margin: 5px 0;"><strong>Total Size:</strong> ${totalSizeMB} MB</p>
-                <p style="margin: 5px 0; font-size: 13px; color: #155724;">
-                    Files will be processed in batches of 10 for optimal performance.
+            <div class="valid-files" style="background: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #28a745;">
+                <h5 style="color: #155724; margin: 0 0 15px 0; font-size: 16px;">✅ Valid Files: ${validFiles.length}</h5>
+                <p style="margin: 5px 0; color: #155724;"><strong>Total Size:</strong> ${totalSizeMB} MB</p>
+                
+                <!-- File Details (Show first 10) -->
+                <div style="margin-top: 15px; max-height: 300px; overflow-y: auto;">
+                    <strong style="color: #155724; display: block; margin-bottom: 10px;">File Names:</strong>
+                    <ul style="margin: 0; padding-left: 20px; color: #155724;">
+        `;
+        
+        // Show first 10 files, then summarize rest
+        validFiles.slice(0, 10).forEach((file, index) => {
+            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            html += `
+                <li style="margin: 5px 0; font-size: 13px; line-height: 1.6;">
+                    <strong>${index + 1}.</strong> ${file.name} 
+                    <span style="color: #666; font-size: 12px;">(${fileSizeMB} MB)</span>
+                </li>
+            `;
+        });
+        
+        if (validFiles.length > 10) {
+            html += `
+                <li style="margin: 5px 0; font-style: italic; color: #666;">
+                    ... and ${validFiles.length - 10} more files
+                </li>
+            `;
+        }
+        
+        html += `
+                    </ul>
+                </div>
+                <p style="margin: 15px 0 0 0; font-size: 13px; color: #155724; background: rgba(40, 167, 69, 0.1); padding: 10px; border-radius: 4px;">
+                    📦 Files will be processed in batches of 10 for optimal performance.
                 </p>
             </div>
         `;
     }
     
     if (invalidFiles.length > 0) {
-        html += '<div class="invalid-files" style="background: #f8d7da; padding: 15px; border-radius: 8px;"><h5 class="text-danger" style="margin: 0 0 10px 0;">❌ Invalid Files: ' + invalidFiles.length + '</h5><ul style="margin: 0; padding-left: 20px;">';
+        html += `
+            <div class="invalid-files" style="background: #f8d7da; padding: 15px; border-radius: 8px; border-left: 4px solid #dc3545;">
+                <h5 style="color: #721c24; margin: 0 0 10px 0;">❌ Invalid Files: ${invalidFiles.length}</h5>
+                <ul style="margin: 0; padding-left: 20px; color: #721c24;">
+        `;
         invalidFiles.forEach(item => {
-            html += `<li style="margin: 5px 0;">${item.file.name} - ${item.error}</li>`;
+            html += `<li style="margin: 5px 0; font-size: 13px;">${item.file.name} - ${item.error}</li>`;
         });
-        html += '</ul></div>';
+        html += `
+                </ul>
+            </div>
+        `;
     }
+    
+    html += `</div>`;
     
     if (container) {
         container.innerHTML = html;
+        console.log('✅ File list displayed successfully');
+    } else {
+        console.warn('⚠️ Container #selected-files-list not found');
     }
     
     if (uploadBtn) {
         uploadBtn.disabled = validFiles.length === 0;
         uploadBtn.dataset.validFileCount = validFiles.length;
+        
+        if (validFiles.length > 0) {
+            uploadBtn.textContent = `Upload & Process ${validFiles.length} Resume(s)`;
+        } else {
+            uploadBtn.textContent = 'Upload & Process Resumes';
+        }
     }
 }
 

@@ -207,42 +207,67 @@ async function saveCurrentJDToLibrary() {
     try {
         Utils.showLoading('Saving JD to library...');
         
-        // Get current session data
+        // Get current session ID
         const sessionId = appState.getSessionId();
+        
+        if (!sessionId) {
+            throw new Error('No active session found. Please process a JD first.');
+        }
+        
+        console.log('📋 Fetching session data for:', sessionId);
+        
+        // Get current session data
         const sessionResponse = await Utils.makeRequest(`/api/jd/session/${sessionId}`);
         
-        const jdData = sessionResponse.jd_data;
+        console.log('📊 Session Response:', sessionResponse);
         
-        if (!jdData || !jdData.structured_data) {
-            throw new Error('No JD data found to save');
+        // Extract structured data from response
+        const structuredData = sessionResponse?.jd_data?.structured_data 
+                            || sessionResponse?.structuring_session?.current_structure
+                            || appState.jdData?.structured_data;
+        
+        if (!structuredData) {
+            throw new Error('No structured JD data found. Please approve the JD structure first.');
         }
+        
+        console.log('✅ Structured Data Found:', structuredData);
+        
+        // Prepare data for saving
+        const saveData = {
+            jd_name: jdName.trim(),
+            original_text: sessionResponse?.jd_data?.original_text || '',
+            structured_data: structuredData,
+            skills_weightage: appState.skillsWeightage || sessionResponse?.jd_data?.skills_weightage || {},
+            tags: [
+                structuredData.job_title || 'Unknown Position',
+                ...(structuredData.primary_skills || []).slice(0, 3)
+            ].filter(Boolean) // Remove undefined/null
+        };
+        
+        console.log('💾 Saving to library:', saveData);
         
         // Save to library
         const response = await Utils.makeRequest('/api/jd-library/save', {
             method: 'POST',
-            body: {
-                jd_name: jdName.trim(),
-                original_text: jdData.original_text || '',
-                structured_data: jdData.structured_data,
-                skills_weightage: appState.skillsWeightage || jdData.skills_weightage || {},
-                tags: [
-                    jdData.structured_data.job_title,
-                    ...(jdData.structured_data.primary_skills || []).slice(0, 3)
-                ]
-            }
+            body: saveData
         });
         
+        console.log('📤 Save Response:', response);
+        
         if (response.status === 'success') {
-            Utils.showToast(`JD "${jdName}" saved to library!`, 'success');
+            Utils.showToast(`✅ JD "${jdName}" saved to library successfully!`, 'success');
+        } else {
+            throw new Error(response.message || 'Failed to save to library');
         }
         
     } catch (error) {
-        console.error('Error saving JD to library:', error);
-        Utils.showToast('Error saving JD: ' + error.message, 'error');
+        console.error('❌ Error saving JD to library:', error);
+        Utils.showToast(`Error saving JD: ${error.message}`, 'error');
     } finally {
         Utils.hideLoading();
     }
 }
+
 
 /**
  * View JD Details

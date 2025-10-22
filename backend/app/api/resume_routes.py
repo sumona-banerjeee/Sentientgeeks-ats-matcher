@@ -41,6 +41,15 @@ async def upload_resumes(
     print(f"Session ID: {session_id}")
     print(f"{'='*60}\n")
     
+    # CRITICAL: Get ALL existing resumes for this session BEFORE processing
+    existing_resumes = db.query(Resume).filter(
+        Resume.session_id == session_id
+    ).all()
+    
+    existing_filenames = {resume.filename.lower().strip() for resume in existing_resumes}
+    
+    print(f"Found {len(existing_filenames)} existing resumes in this session")
+    
     # Process in batches of 10 for better performance
     BATCH_SIZE = 10
     total_batches = (len(files) + BATCH_SIZE - 1) // BATCH_SIZE
@@ -50,25 +59,26 @@ async def upload_resumes(
         batch_end = min((batch_num + 1) * BATCH_SIZE, len(files))
         batch_files = files[batch_start:batch_end]
         
-        print(f"\n📦 Processing Batch {batch_num + 1}/{total_batches} ({len(batch_files)} resumes)...")
+        print(f"\n Processing Batch {batch_num + 1}/{total_batches} ({len(batch_files)} resumes)...")
         
         # Process batch
         for file in batch_files:
             try:
-                # CHECK FOR DUPLICATES
-                existing_resume = db.query(Resume).filter(
-                    Resume.session_id == session_id,
-                    Resume.filename == file.filename
-                ).first()
+                # ENHANCED: Normalize filename for comparison
+                normalized_filename = file.filename.lower().strip()
                 
-                if existing_resume:
-                    print(f"   ⚠️ DUPLICATE: {file.filename} - SKIPPING")
+                # CHECK FOR DUPLICATES (case-insensitive)
+                if normalized_filename in existing_filenames:
+                    print(f" DUPLICATE: {file.filename} - SKIPPING")
                     skipped_duplicates.append({
                         "filename": file.filename,
                         "reason": "Already uploaded in this session",
                         "status": "skipped"
                     })
                     continue
+                
+                # CRITICAL: Add to existing set immediately to prevent duplicates within same batch
+                existing_filenames.add(normalized_filename)
                 
                 # Save file
                 file_path = f"./data/uploads/resumes/{session_id}_{file.filename}"
@@ -97,7 +107,7 @@ async def upload_resumes(
                 
                 # Create database record
                 resume = Resume(
-                    filename=file.filename,
+                    filename=file.filename,  # Keep original filename
                     file_path=file_path,
                     extracted_text=resume_text,
                     structured_data=structured_data,
@@ -117,7 +127,7 @@ async def upload_resumes(
                     "processing_status": "success"
                 })
                 
-                print(f" SUCCESS: {file.filename}")
+                print(f"SUCCESS: {file.filename}")
                 
             except Exception as e:
                 print(f" ERROR: {file.filename} - {str(e)}")
@@ -134,11 +144,11 @@ async def upload_resumes(
             db.commit()
             print(f" Batch {batch_num + 1} committed to database")
         except Exception as e:
-            print(f" Batch commit error: {e}")
+            print(f"Batch commit error: {e}")
             db.rollback()
     
     print(f"\n{'='*60}")
-    print(f"📊 UPLOAD SUMMARY:")
+    print(f"UPLOAD SUMMARY:")
     print(f"   Total Files: {len(files)}")
     print(f"   Successfully Processed: {len(processed_resumes)}")
     print(f"   Duplicates Skipped: {len(skipped_duplicates)}")
@@ -155,7 +165,6 @@ async def upload_resumes(
         "failed_files": failed_resumes,
         "resumes": processed_resumes
     }
-
 
 
 @router.get("/session/{session_id}")
