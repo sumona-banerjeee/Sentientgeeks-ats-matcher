@@ -1,7 +1,4 @@
-// ============================================================================
-// GLOBAL STATE MANAGEMENT
-// ============================================================================
-
+// Global state management
 class AppState {
     constructor() {
         this.sessionId = null;
@@ -47,10 +44,7 @@ class AppState {
     }
 }
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
+// Utility functions
 class Utils {
     static showLoading(message = 'Processing...') {
         const overlay = document.getElementById('loading-overlay');
@@ -139,23 +133,13 @@ class Utils {
     }
 }
 
-// ============================================================================
-// INITIALIZE APP STATE
-// ============================================================================
-
+// Initialize app
 const appState = new AppState();
 
-// ============================================================================
-// DOM READY - SINGLE INITIALIZATION
-// ============================================================================
-
+// DOM ready
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
 });
-
-// ============================================================================
-// APP INITIALIZATION
-// ============================================================================
 
 function initializeApp() {
     // Check if there's an existing session
@@ -171,13 +155,7 @@ function initializeApp() {
     
     // Show first step
     appState.updateUI();
-    
-    console.log('✅ Main app initialized');
 }
-
-// ============================================================================
-// EVENT LISTENERS INITIALIZATION
-// ============================================================================
 
 function initializeEventListeners() {
     // JD file input
@@ -185,45 +163,54 @@ function initializeEventListeners() {
     if (jdFileInput) {
         jdFileInput.addEventListener('change', handleJDFileSelect);
     }
-
+    
     // JD text input
     const jdTextInput = document.getElementById('jd-text');
     if (jdTextInput) {
         jdTextInput.addEventListener('input', handleJDTextInput);
     }
-
+    
     // Process JD button
     const processBtn = document.getElementById('process-jd-btn');
     if (processBtn) {
         processBtn.addEventListener('click', processJobDescription);
     }
-
+    
     // Structure approval buttons
     const approveBtn = document.getElementById('approve-structure-btn');
     if (approveBtn) {
         approveBtn.addEventListener('click', approveStructure);
     }
-
+    
     const requestChangesBtn = document.getElementById('request-changes-btn');
     if (requestChangesBtn) {
         requestChangesBtn.addEventListener('click', requestStructureChanges);
     }
-
+    
     // Skills weightage button
     const weightageBtn = document.getElementById('set-weightage-btn');
     if (weightageBtn) {
         weightageBtn.addEventListener('click', setSkillsWeightage);
     }
-
-    // ✅ Resume upload completely handled by resume-uploader.js
-    // ✅ Matching completely handled by matcher.js
     
-    console.log('✅ Main.js event listeners initialized');
+    // Resume files input
+    const resumeFilesInput = document.getElementById('resume-files');
+    if (resumeFilesInput) {
+        resumeFilesInput.addEventListener('change', handleResumeFilesSelect);
+    }
+    
+    // Upload resumes button
+    const uploadResumesBtn = document.getElementById('upload-resumes-btn');
+    if (uploadResumesBtn) {
+        uploadResumesBtn.addEventListener('click', uploadResumes);
+    }
+    
+    // Start matching button
+    const startMatchingBtn = document.getElementById('start-matching-btn');
+    if (startMatchingBtn) {
+        startMatchingBtn.addEventListener('click', startMatching);
+    }
 }
-
-// ============================================================================
-// JD PROCESSING FUNCTIONS
-// ============================================================================
 
 function handleJDFileSelect(event) {
     const file = event.target.files[0];
@@ -231,7 +218,7 @@ function handleJDFileSelect(event) {
         try {
             Utils.validateFile(file);
             const textInput = document.getElementById('jd-text');
-            if (textInput) textInput.value = '';
+            if (textInput) textInput.value = ''; // Clear text input
             updateProcessJDButton();
             Utils.showToast('JD file selected successfully', 'success');
         } catch (error) {
@@ -244,7 +231,7 @@ function handleJDFileSelect(event) {
 function handleJDTextInput(event) {
     if (event.target.value.trim()) {
         const fileInput = document.getElementById('jd-file');
-        if (fileInput) fileInput.value = '';
+        if (fileInput) fileInput.value = ''; // Clear file input
     }
     updateProcessJDButton();
 }
@@ -262,6 +249,8 @@ function updateProcessJDButton() {
     processBtn.disabled = !(hasFile || hasText);
 }
 
+// FIXED: Proper async function for processing job description
+// FIXED: Proper async function for processing job description
 async function processJobDescription() {
     const fileInput = document.getElementById('jd-file');
     const textInput = document.getElementById('jd-text');
@@ -286,11 +275,15 @@ async function processJobDescription() {
             throw new Error('Please provide either a JD file or text');
         }
         
-        const serverUrl = 'http://localhost:8000';
+        // FIXED: Use proper server URL with protocol and port
+        const serverUrl = 'http://localhost:8000'; // or your actual server URL
         const response = await fetch(`${serverUrl}/api/jd/upload`, {
             method: 'POST',
             body: formData,
-            headers: {}
+            // Remove Content-Type header - let browser set it for FormData
+            headers: {
+                // Don't set Content-Type for FormData - browser will set multipart/form-data
+            }
         });
         
         console.log('Response status:', response.status);
@@ -309,10 +302,14 @@ async function processJobDescription() {
         const result = await response.json();
         console.log('JD processing result:', result);
         
+        // Store session data
         appState.setSessionId(result.session_id);
         appState.jdData = result;
         
+        // Display structured JD
         displayStructuredJD(result.structured_data);
+        
+        // Move to next step
         appState.nextStep();
         
         Utils.showToast('Job description processed successfully!', 'success');
@@ -320,6 +317,7 @@ async function processJobDescription() {
     } catch (error) {
         console.error('Error processing JD:', error);
         
+        // Better error handling
         if (error.message.includes('Failed to fetch')) {
             Utils.showToast('Cannot connect to server. Is the backend running on port 8000?', 'error');
         } else if (error.message.includes('404')) {
@@ -332,6 +330,7 @@ async function processJobDescription() {
     }
 }
 
+
 function displayStructuredJD(structuredData) {
     const container = document.getElementById('structured-jd-display');
     if (!container) {
@@ -342,22 +341,27 @@ function displayStructuredJD(structuredData) {
     let html = '<div class="structured-jd">';
     html += '<h3>Structured Job Description</h3>';
     
+    // Job Title
     if (structuredData.job_title) {
         html += `<div class="jd-field"><strong>Job Title:</strong> ${structuredData.job_title}</div>`;
     }
     
+    // Company
     if (structuredData.company) {
         html += `<div class="jd-field"><strong>Company:</strong> ${structuredData.company}</div>`;
     }
     
+    // Location
     if (structuredData.location) {
         html += `<div class="jd-field"><strong>Location:</strong> ${structuredData.location}</div>`;
     }
     
+    // Experience Required
     if (structuredData.experience_required) {
         html += `<div class="jd-field"><strong>Experience Required:</strong> ${structuredData.experience_required}</div>`;
     }
     
+    // Primary Skills
     if (structuredData.primary_skills && structuredData.primary_skills.length > 0) {
         html += '<div class="jd-field"><strong>Primary Skills:</strong><ul>';
         structuredData.primary_skills.forEach(skill => {
@@ -366,6 +370,7 @@ function displayStructuredJD(structuredData) {
         html += '</ul></div>';
     }
     
+    // Secondary Skills
     if (structuredData.secondary_skills && structuredData.secondary_skills.length > 0) {
         html += '<div class="jd-field"><strong>Secondary Skills:</strong><ul>';
         structuredData.secondary_skills.forEach(skill => {
@@ -374,6 +379,7 @@ function displayStructuredJD(structuredData) {
         html += '</ul></div>';
     }
     
+    // Responsibilities
     if (structuredData.responsibilities && structuredData.responsibilities.length > 0) {
         html += '<div class="jd-field"><strong>Key Responsibilities:</strong><ul>';
         structuredData.responsibilities.forEach(resp => {
@@ -382,6 +388,7 @@ function displayStructuredJD(structuredData) {
         html += '</ul></div>';
     }
     
+    // Qualifications
     if (structuredData.qualifications && structuredData.qualifications.length > 0) {
         html += '<div class="jd-field"><strong>Qualifications:</strong><ul>';
         structuredData.qualifications.forEach(qual => {
@@ -391,14 +398,11 @@ function displayStructuredJD(structuredData) {
     }
     
     html += '</div>';
+    
     container.innerHTML = html;
-    displaySkillsWeightageForm(structuredData);
 }
 
-// ============================================================================
-// STRUCTURE APPROVAL FUNCTIONS
-// ============================================================================
-
+// PLACEHOLDER FUNCTIONS - Add these if missing
 async function approveStructure() {
     if (!appState.getSessionId()) {
         Utils.showToast('No active session found', 'error');
@@ -449,59 +453,23 @@ async function requestStructureChanges() {
     }
 }
 
-// ============================================================================
-// SKILLS WEIGHTAGE FUNCTION
-// ============================================================================
-
-// ============================================================================
-// SKILLS WEIGHTAGE FUNCTION - Collects user input from form
-// ============================================================================
-
 async function setSkillsWeightage() {
+    // This would typically involve collecting skill weights from a form
+    // For now, setting default weights
+    const defaultWeights = {
+        'python': 30,
+        'javascript': 25,
+        'react': 20,
+        'sql': 15,
+        'git': 10
+    };
+    
     try {
-        // Collect skill weightage from user input fields
-        const skillWeightageInputs = document.querySelectorAll('.skill-weightage-input');
-        
-        if (!skillWeightageInputs || skillWeightageInputs.length === 0) {
-            Utils.showToast('No skill weightage fields found. Please process JD first.', 'warning');
-            return;
-        }
-        
-        // Build weightage object from form inputs
-        const skillsWeightage = {};
-        let hasValidInput = false;
-        let totalWeight = 0;
-        
-        skillWeightageInputs.forEach(input => {
-            const skillName = input.dataset.skill || input.name;
-            const weightValue = parseInt(input.value) || 0;
-            
-            if (weightValue > 0 && weightValue <= 100) {
-                skillsWeightage[skillName] = weightValue;
-                totalWeight += weightValue;
-                hasValidInput = true;
-            }
-        });
-        
-        // Validate that user entered at least some skills
-        if (!hasValidInput) {
-            Utils.showToast('Please enter weightage for at least one skill (1-100)', 'error');
-            return;
-        }
-        
-        // Optional: Validate total doesn't exceed 100
-        if (totalWeight > 100) {
-            const proceed = confirm(`Total weightage is ${totalWeight}%. This exceeds 100%. Continue anyway?`);
-            if (!proceed) return;
-        }
-        
-        console.log('Collected skills weightage:', skillsWeightage);
-        
         Utils.showLoading('Setting skills weightage...');
         
-        const response = await Utils.makeRequest(`/api/jd/set-skills-weightage/${appState.getSessionId()}`, {
+        await Utils.makeRequest(`/api/jd/set-skills-weightage/${appState.getSessionId()}`, {
             method: 'POST',
-            body: skillsWeightage
+            body: defaultWeights
         });
         
         appState.nextStep();
@@ -514,23 +482,57 @@ async function setSkillsWeightage() {
     }
 }
 
+function handleResumeFilesSelect(event) {
+    const files = event.target.files;
+    Utils.showToast(`${files.length} resume(s) selected`, 'success');
+}
 
-// ============================================================================
-// NAVIGATION HELPERS
-// ============================================================================
+async function uploadResumes() {
+    const fileInput = document.getElementById('resume-files');
+    if (!fileInput || !fileInput.files.length) {
+        Utils.showToast('Please select resume files first', 'warning');
+        return;
+    }
+    
+    try {
+        Utils.showLoading('Uploading resumes...');
+        
+        const formData = new FormData();
+        for (let i = 0; i < fileInput.files.length; i++) {
+            formData.append('files', fileInput.files[i]);
+        }
+        
+        const response = await fetch(`/api/resumes/upload/${appState.getSessionId()}`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+        
+        const result = await response.json();
+        appState.nextStep();
+        Utils.showToast(`${result.successfully_processed} resumes uploaded successfully!`, 'success');
+        
+    } catch (error) {
+        Utils.showToast(`Error uploading resumes: ${error.message}`, 'error');
+    } finally {
+        Utils.hideLoading();
+    }
+}
 
+// Add navigation helper function
 function goToResumeUpload() {
     appState.currentStep = 4;
     appState.updateUI();
     Utils.showToast('Please upload resumes before matching', 'info');
 }
 
-// ============================================================================
-// MATCHING FUNCTIONS (Keep only if matcher.js doesn't have them)
-// ============================================================================
-
+// Update the Start Matching button to check for resumes first
 async function startMatching() {
     try {
+        // First check if resumes exist
         const sessionResponse = await Utils.makeRequest(`/api/resumes/session/${appState.getSessionId()}`);
         
         if (!sessionResponse.resumes || sessionResponse.resumes.length === 0) {
@@ -564,107 +566,7 @@ async function startMatching() {
 }
 
 async function displayMatchingResults() {
+    // Placeholder for displaying matching results
     console.log('Displaying matching results:', appState.matchingResults);
     appState.nextStep();
-}
-
-// ============================================================================
-// DISPLAY SKILLS WEIGHTAGE FORM
-// ============================================================================
-
-function displaySkillsWeightageForm(structuredData) {
-    const container = document.getElementById('skills-weightage-form');
-    if (!container) {
-        console.warn('Skills weightage form container not found');
-        return;
-    }
-    
-    // Collect all skills from structured data
-    const allSkills = [];
-    
-    if (structuredData.primary_skills && structuredData.primary_skills.length > 0) {
-        allSkills.push(...structuredData.primary_skills.map(skill => ({
-            name: skill,
-            type: 'primary',
-            suggested: 30 // Suggested weightage for primary skills
-        })));
-    }
-    
-    if (structuredData.secondary_skills && structuredData.secondary_skills.length > 0) {
-        allSkills.push(...structuredData.secondary_skills.map(skill => ({
-            name: skill,
-            type: 'secondary',
-            suggested: 15 // Suggested weightage for secondary skills
-        })));
-    }
-    
-    if (allSkills.length === 0) {
-        container.innerHTML = '<p style="color: #999;">No skills found in JD. Please review JD structure.</p>';
-        return;
-    }
-    
-    // Generate HTML for skills form
-    let html = '<div class="skills-weightage-container">';
-    html += '<p style="margin-bottom: 20px; color: #666;">Enter weightage for each skill (1-100). Higher values indicate more importance.</p>';
-    
-    // Primary Skills Section
-    const primarySkills = allSkills.filter(s => s.type === 'primary');
-    if (primarySkills.length > 0) {
-        html += '<div class="skill-section">';
-        html += '<h4 style="color: #667eea; margin-bottom: 15px;">Primary Skills</h4>';
-        
-        primarySkills.forEach((skill, index) => {
-            const skillId = `skill-${skill.name.toLowerCase().replace(/\s+/g, '-')}`;
-            html += `
-                <div class="skill-item" style="display: flex; align-items: center; margin-bottom: 12px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
-                    <label for="${skillId}" style="flex: 1; font-weight: 500;">${skill.name}:</label>
-                    <input type="number" 
-                           id="${skillId}" 
-                           class="skill-weightage-input" 
-                           data-skill="${skill.name}"
-                           name="${skill.name}"
-                           min="1" 
-                           max="100"
-                           placeholder="${skill.suggested}"
-                           style="width: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    <span style="margin-left: 10px; color: #999; font-size: 12px;">Suggested: ${skill.suggested}</span>
-                </div>
-            `;
-        });
-        
-        html += '</div>';
-    }
-    
-    // Secondary Skills Section
-    const secondarySkills = allSkills.filter(s => s.type === 'secondary');
-    if (secondarySkills.length > 0) {
-        html += '<div class="skill-section" style="margin-top: 25px;">';
-        html += '<h4 style="color: #764ba2; margin-bottom: 15px;">Secondary Skills</h4>';
-        
-        secondarySkills.forEach((skill, index) => {
-            const skillId = `skill-${skill.name.toLowerCase().replace(/\s+/g, '-')}`;
-            html += `
-                <div class="skill-item" style="display: flex; align-items: center; margin-bottom: 12px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
-                    <label for="${skillId}" style="flex: 1; font-weight: 500;">${skill.name}:</label>
-                    <input type="number" 
-                           id="${skillId}" 
-                           class="skill-weightage-input" 
-                           data-skill="${skill.name}"
-                           name="${skill.name}"
-                           min="1" 
-                           max="100"
-                           placeholder="${skill.suggested}"
-                           style="width: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    <span style="margin-left: 10px; color: #999; font-size: 12px;">Suggested: ${skill.suggested}</span>
-                </div>
-            `;
-        });
-        
-        html += '</div>';
-    }
-    
-    html += '</div>';
-    
-    container.innerHTML = html;
-    console.log(`✅ Skills weightage form generated for ${allSkills.length} skills`);
 }

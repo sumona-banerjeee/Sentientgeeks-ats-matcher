@@ -4,12 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SentientGeeks ATS Resume Matcher</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="static/css/components.css">
 </head>
 <body>
     <div id="app">
-        <!-- Header -->
         <header class="header">
             <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
@@ -20,140 +19,107 @@
             </div>
         </header>
 
-        <!-- Main Content -->
         <main class="main-content">
             <div class="container">
-                
                 <!-- Step 1: Job Description Upload with History Sidebar -->
                 <section id="jd-section" class="section active">
                     <div class="jd-with-history-layout">
-                        
                         <!-- Left: Job Description Upload -->
                         <div class="jd-upload-area-wrapper">
                             <div class="card">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                                     <h2 style="margin: 0;">Step 1: Upload Job Description</h2>
-                                    <button id="show-jd-library-btn" class="btn btn-secondary" style="padding: 10px 20px;">
+                                    <button onclick="showJDLibrary()" class="btn btn-secondary" style="padding: 10px 20px;">
                                         📚 JD Library
                                     </button>
                                 </div>
-                                
-                                <div class="upload-options">
-                                    <div class="upload-option">
-                                        <h3>Option 1: Upload JD File (PDF/Text)</h3>
-                                        <input type="file" id="jd-file" accept=".pdf,.txt,.doc,.docx">
-                                        <label for="jd-file" class="file-label">
-                                            📄 Choose File
-                                        </label>
+                                <div class="upload-area" id="jd-upload-area">
+                                    <div class="upload-options">
+                                        <div class="upload-option">
+                                            <input type="file" id="jd-file" accept=".pdf" style="display: none;">
+                                            <button type="button" class="btn btn-primary" onclick="document.getElementById('jd-file').click()">
+                                                Upload JD File (PDF)
+                                            </button>
+                                        </div>
+                                        <div class="or-divider">OR</div>
+                                        <div class="upload-option">
+                                            <textarea id="jd-text" placeholder="Paste job description text here..." rows="8"></textarea>
+                                        </div>
                                     </div>
-                                    
-                                    <div class="divider">OR</div>
-                                    
-                                    <div class="upload-option">
-                                        <h3>Option 2: Paste JD Text</h3>
-                                        <textarea id="jd-text" placeholder="Paste your job description here..." rows="10"></textarea>
-                                    </div>
+                                    <button id="process-jd-btn" class="btn btn-secondary" disabled>Process Job Description</button>
                                 </div>
-                                
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-                                    <button id="process-jd-btn" class="btn btn-primary" disabled>
-                                        Process Job Description
+                            </div>
+                        </div>
+
+                        <!-- Right: History Sidebar -->
+                        <div class="history-sidebar">
+                            <div class="card">
+                                <div class="history-header">
+                                    <h3><i class="fas fa-history"></i> Matching History</h3>
+                                    <button id="refresh-history-btn" class="btn btn-sm btn-icon" onclick="loadHistorySidebar()" title="Refresh History">
+                                        🔄
                                     </button>
-                                    
-                                    <button id="save-jd-library-btn" class="btn btn-secondary">
+                                </div>
+                                <div id="history-sidebar-content" class="history-list">
+                                    <p class="loading-text">Loading history...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 2: JD Structure Approval -->
+                <section id="structure-section" class="section">
+                    <div class="card">
+                        <h2>Step 2: Review & Approve JD Structure</h2>
+                        <div id="structure-content">
+                            <div id="structured-jd-display"></div>
+                            <div class="structure-actions">
+                                <div class="feedback-area">
+                                    <textarea id="structure-feedback" placeholder="Enter feedback for changes (optional)..." rows="3"></textarea>
+                                </div>
+                                <div class="action-buttons">
+                                    <button id="approve-structure-btn" class="btn btn-success">Approve Structure</button>
+                                    <button id="request-changes-btn" class="btn btn-warning">Request Changes</button>
+                                    <button onclick="saveCurrentJDToLibrary()" class="btn btn-secondary" style="background:#6c757d;">
                                         💾 Save to Library
                                     </button>
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- Right: History Sidebar -->
-                        <div class="history-sidebar-wrapper">
-                            <div class="card history-sidebar">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                    <h3 style="margin: 0; font-size: 18px;">📋 Matching History</h3>
-                                    <button id="refresh-history-btn" class="btn btn-secondary" style="padding: 5px 10px; font-size: 12px;">
-                                        🔄 Refresh
-                                    </button>
-                                </div>
-                                <div id="history-sidebar-content">
-                                    <!-- Dynamically populated by history-sidebar.js -->
-                                </div>
-                            </div>
-                        </div>
-                        
                     </div>
                 </section>
 
-                <!-- Step 2: Review & Approve JD Structure -->
-                <section id="structure-section" class="section">
-                    <div class="card">
-                        <h2>Step 2: Review & Approve JD Structure</h2>
-                        <div id="structured-jd-display">
-                            <!-- Dynamically populated -->
-                        </div>
-                        
-                        <div style="display: flex; gap: 15px; margin-top: 30px;">
-                            <button id="approve-structure-btn" class="btn btn-success">
-                                ✅ Approve & Continue
-                            </button>
-                            <button id="request-changes-btn" class="btn btn-warning">
-                                🔄 Request Changes
-                            </button>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Step 3: Set Skills Weightage -->
+                <!-- Step 3: Skills Weightage -->
                 <section id="skills-section" class="section">
                     <div class="card">
                         <h2>Step 3: Set Skills Weightage</h2>
-                        <p>Assign weightage (1–100) to skills based on priority</p>
-                        
-                        <!-- Skills weightage form will be populated dynamically -->
-                        <div id="skills-weightage-form">
-                            <!-- Dynamically generated by main.js displaySkillsWeightageForm() -->
+                        <div id="skills-content">
+                            <p class="instruction">Assign weightage (1–100) to skills based on priority</p>
+                            <div id="skills-weightage-form"></div>
+                            <button id="set-weightage-btn" class="btn btn-primary">Set Weightage & Continue</button>
                         </div>
-                        
-                        <button id="set-weightage-btn" class="btn btn-primary" style="margin-top: 30px;">
-                            Set Weightage & Continue
-                        </button>
                     </div>
                 </section>
 
-                <!-- Step 4: Upload Resumes -->
+                <!-- Step 4: Resume Upload -->
                 <section id="resume-section" class="section">
                     <div class="card">
                         <h2>Step 4: Upload Resumes (Up to 500 files)</h2>
-                        <p>You can select up to 500 PDF resumes at once. Files will be processed in batches.</p>
-                        
-                        <div class="file-upload-container">
-                            <input type="file" 
-                                   id="resume-files" 
-                                   accept=".pdf" 
-                                   multiple 
-                                   style="display: none;">
-                            
-                            <button type="button" 
-                                    id="select-resume-files-btn"
-                                    class="btn btn-primary">
-                                📁 Select Resume Files (Max 500)
-                            </button>
-                        </div>
-                        
-                        <div id="selected-files-list" style="margin-top: 20px;">
-                            <!-- File list will be displayed here -->
-                        </div>
-                        
-                        <button id="upload-resumes-btn" 
-                                class="btn btn-success" 
-                                disabled 
-                                style="margin-top: 20px;">
-                            Upload & Process Resumes
-                        </button>
-                        
-                        <div id="resumes-list" style="margin-top: 30px;">
-                            <!-- Resume results will be displayed here -->
+                        <div class="upload-area">
+                            <input type="file" id="resume-files" multiple accept=".pdf" style="display: none;">
+                            <div class="upload-info">
+                                <button type="button" class="btn btn-primary" onclick="document.getElementById('resume-files').click()">
+                                    Select Resume Files (Max 500)
+                                </button>
+                                <p class="upload-note">You can select up to 500 PDF resumes at once. Files will be processed in batches.</p>
+                            </div>
+                            <div id="selected-files-list"></div>
+                            <div id="upload-status" style="display: none; margin-top: 20px;">
+                                <div id="upload-progress" style="background: #f0f0f0; border-radius: 8px; padding: 15px; margin-bottom: 15px;"></div>
+                            </div>
+                            <div id="resumes-list" style="margin-top: 20px;"></div>
+                            <button id="upload-resumes-btn" class="btn btn-secondary" disabled>Upload & Process Resumes</button>
                         </div>
                     </div>
                 </section>
@@ -161,127 +127,37 @@
                 <!-- Step 5: Matching Results -->
                 <section id="results-section" class="section">
                     <div class="card">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <h2 style="margin: 0;">Step 5: ATS Matching Results</h2>
-                            <button id="start-matching-btn" class="btn btn-primary">
-                                🚀 Start Matching
-                            </button>
+                        <h2>Step 5: ATS Matching Results</h2>
+                        <div id="matching-controls">
+                            <button id="start-matching-btn" class="btn btn-success">Start ATS Matching</button>
                         </div>
-                        
-                        <div id="results-content">
-                            <!-- Matching results will be displayed here -->
-                        </div>
+                        <div id="results-content"></div>
                     </div>
                 </section>
-
             </div>
         </main>
 
-        <!-- Loading Overlay -->
         <div id="loading-overlay" class="loading-overlay">
-            <div class="loading-spinner"></div>
+            <div class="spinner"></div>
             <p id="loading-message">Processing...</p>
         </div>
 
-        <!-- Toast Container -->
         <div id="toast-container" class="toast-container"></div>
-
-        <!-- JD Library Modal -->
-        <div id="jd-library-modal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>📚 Job Description Library</h2>
-                    <button id="close-jd-library-btn" class="close-btn">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div id="jd-library-content">
-                        <!-- Library content will be loaded here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
     </div>
 
-    <!-- JavaScript Files - Load in correct order -->
-    <script src="/static/js/main.js"></script>
-    <script src="/static/js/jd-processor.js"></script>
-    <script src="/static/js/resume-uploader.js"></script>
-    <script src="/static/js/matcher.js"></script>
-    <script src="/static/js/jd-library.js"></script>
-    <script src="/static/js/history-sidebar.js"></script>
+    <!-- Scripts -->
+    <script src="static/js/main.js"></script>
+    <script src="static/js/jd-processor.js"></script>
+    <script src="static/js/resume-uploader.js"></script>
+    <script src="static/js/matcher.js?v=3.0"></script>
+    <script src="static/js/history-sidebar.js"></script>
+    <script src="static/js/jd-library.js"></script>
 
-    <!-- Additional Event Listeners for Buttons -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🔧 Attaching additional event listeners...');
-            
-            // JD Library button
-            const showJDLibraryBtn = document.getElementById('show-jd-library-btn');
-            if (showJDLibraryBtn) {
-                showJDLibraryBtn.addEventListener('click', function() {
-                    if (typeof showJDLibrary === 'function') {
-                        showJDLibrary();
-                    } else {
-                        console.warn('showJDLibrary function not found');
-                    }
-                });
-            }
-            
-            // Save to Library button
-            const saveJDLibraryBtn = document.getElementById('save-jd-library-btn');
-            if (saveJDLibraryBtn) {
-                saveJDLibraryBtn.addEventListener('click', function() {
-                    if (typeof saveCurrentJDToLibrary === 'function') {
-                        saveCurrentJDToLibrary();
-                    } else {
-                        console.warn('saveCurrentJDToLibrary function not found');
-                    }
-                });
-            }
-            
-            // Refresh History button
-            const refreshHistoryBtn = document.getElementById('refresh-history-btn');
-            if (refreshHistoryBtn) {
-                refreshHistoryBtn.addEventListener('click', function() {
-                    if (typeof loadHistorySidebar === 'function') {
-                        loadHistorySidebar();
-                    } else {
-                        console.warn('loadHistorySidebar function not found');
-                    }
-                });
-            }
-            
-            // Close JD Library Modal button
-            const closeJDLibraryBtn = document.getElementById('close-jd-library-btn');
-            if (closeJDLibraryBtn) {
-                closeJDLibraryBtn.addEventListener('click', function() {
-                    if (typeof closeJDLibrary === 'function') {
-                        closeJDLibrary();
-                    } else {
-                        const modal = document.getElementById('jd-library-modal');
-                        if (modal) modal.style.display = 'none';
-                    }
-                });
-            }
-            
-            // Select Resume Files button
-            const selectResumeBtn = document.getElementById('select-resume-files-btn');
-            const resumeInput = document.getElementById('resume-files');
-            if (selectResumeBtn && resumeInput) {
-                selectResumeBtn.addEventListener('click', function() {
-                    resumeInput.click();
-                });
-            }
-            
-            console.log('✅ Additional event listeners attached successfully');
-        });
-    </script>
-
-    <!-- Enhanced Candidate Details Modal -->
+    <!-- 🔥 CORRECTED CANDIDATE DETAILS MODAL -->
     <script>
         console.log("🔥 ENHANCED CANDIDATE MODAL LOADED");
         
+        // Override the problematic function with bulletproof version
         function showCandidateDetails(sessionId, resumeId) {
             console.log("📊 showCandidateDetails called with", sessionId, resumeId);
             
@@ -297,28 +173,38 @@
                 .then(data => {
                     console.log("✅ API Response:", data);
                     
+                    // Create modal with inline styles to avoid CSS dependencies
                     const modal = document.createElement('div');
                     modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 9999; font-family: Arial, sans-serif;';
                     modal.className = 'emergency-candidate-modal';
                     
+                    // 🔥 CORRECTED: Access nested structure properly
                     const resumeInfo = data?.resume_info || {};
                     const personalInfo = resumeInfo?.personal_info || resumeInfo?.personalinfo || {};
                     const professionalInfo = resumeInfo?.professional_info || resumeInfo?.professionalinfo || {};
                     const matchingAnalysis = data?.matching_analysis || data?.matchinganalysis || {};
                     const jdInfo = data?.jd_info || data?.jdinfo || {};
                     
+                    console.log("📋 Extracted personalInfo:", personalInfo);
+                    console.log("💼 Extracted professionalInfo:", professionalInfo);
+                    
+                    // Extract information with fallbacks and multiple key attempts
                     const name = personalInfo.name || resumeInfo.filename?.replace('.pdf', '').replace(/_/g, ' ') || 'Unknown Candidate';
                     const email = personalInfo.email || 'Not provided';
                     const phone = personalInfo.phone || 'Not provided';
                     const linkedin = personalInfo.linkedin || 'Not provided';
                     const github = personalInfo.github || 'Not provided';
+                    const portfolio = personalInfo.portfolio || 'Not provided';
                     const location = personalInfo.location || 'Not provided';
                     
                     const currentRole = professionalInfo.current_role || professionalInfo.currentrole || professionalInfo.currentRole || 'Not specified';
                     const experience = professionalInfo.total_experience || professionalInfo.totalexperience || professionalInfo.totalExperience || 0;
                     const skills = professionalInfo.skills || [];
+                    
+                    // 🔥 FIXED: Multiple fallback attempts for education and certifications
                     const education = professionalInfo.education || resumeInfo.education || [];
                     const certifications = professionalInfo.certifications || resumeInfo.certifications || [];
+                    
                     const experienceTimeline = professionalInfo.experience_timeline || professionalInfo.experiencetimeline || professionalInfo.experienceTimeline || [];
                     
                     const overallScore = matchingAnalysis.overall_score || matchingAnalysis.overallscore || matchingAnalysis.overallScore || 0;
@@ -326,102 +212,173 @@
                     const experienceScore = matchingAnalysis.experience_score || matchingAnalysis.experiencescore || matchingAnalysis.experienceScore || 0;
                     const rank = matchingAnalysis.rank || matchingAnalysis.rank_position || matchingAnalysis.rankposition || 'N/A';
                     
+                    // JD Information
                     const jobTitle = jdInfo.job_title || jdInfo.jobtitle || jdInfo.jobTitle || 'Unknown Position';
                     const company = jdInfo.company || 'Unknown Company';
                     const requiredSkills = jdInfo.required_skills || jdInfo.requiredskills || jdInfo.requiredSkills || [];
                     const experienceRequired = jdInfo.experience_required || jdInfo.experiencerequired || jdInfo.experienceRequired || 'Not specified';
                     
+                    console.log("✅ Final Extracted Data:", {
+                        name, email, currentRole, experience,
+                        educationCount: education.length,
+                        certificationsCount: certifications.length,
+                        skillsCount: skills.length
+                    });
+                    
                     modal.innerHTML = `
                         <div style="background: white; padding: 0; border-radius: 12px; max-width: 900px; width: 95%; max-height: 90vh; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                            <!-- Header -->
                             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
                                 <div>
                                     <h2 style="margin: 0 0 5px 0; font-size: 24px;">${name}</h2>
                                     <p style="margin: 0; opacity: 0.9; font-size: 14px;">Rank #${rank} • Overall Score: ${overallScore}%</p>
                                 </div>
-                                <button class="modal-close-btn" style="background: none; border: none; color: white; font-size: 28px; cursor: pointer; padding: 0; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">&times;</button>
+                                <button onclick="closeEmergencyModal()" style="background: none; border: none; color: white; font-size: 28px; cursor: pointer; padding: 0; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='none'">&times;</button>
                             </div>
                             
+                            <!-- Content -->
                             <div style="padding: 20px; max-height: calc(90vh - 160px); overflow-y: auto;">
+                                <!-- Personal Information -->
                                 <div style="margin-bottom: 25px;">
-                                    <h3 style="color: #333; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #eee;">📋 Personal Information</h3>
+                                    <h3 style="color: #333; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #eee; display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 20px;">📋</span> Personal Information
+                                    </h3>
                                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;">
-                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;"><strong style="color: #666; font-size: 12px; display: block;">Name</strong><span>${name}</span></div>
-                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;"><strong style="color: #666; font-size: 12px; display: block;">Email</strong>${email !== 'Not provided' ? `<a href="mailto:${email}">${email}</a>` : '<span style="color: #999;">Not provided</span>'}</div>
-                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;"><strong style="color: #666; font-size: 12px; display: block;">Phone</strong>${phone !== 'Not provided' ? `<a href="tel:${phone}">${phone}</a>` : '<span style="color: #999;">Not provided</span>'}</div>
-                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;"><strong style="color: #666; font-size: 12px; display: block;">Location</strong><span>${location}</span></div>
-                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;"><strong style="color: #666; font-size: 12px; display: block;">LinkedIn</strong>${linkedin !== 'Not provided' ? `<a href="${linkedin}" target="_blank">View Profile →</a>` : '<span style="color: #999;">Not provided</span>'}</div>
-                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;"><strong style="color: #666; font-size: 12px; display: block;">GitHub</strong>${github !== 'Not provided' ? `<a href="${github}" target="_blank">View Profile →</a>` : '<span style="color: #999;">Not provided</span>'}</div>
-                                    </div>
-                                </div>
-                                
-                                <div style="margin-bottom: 25px;">
-                                    <h3 style="color: #333; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #eee;">💼 Professional Information</h3>
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;"><strong style="color: #666; font-size: 12px; display: block;">Current Role</strong><span>${currentRole}</span></div>
-                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;"><strong style="color: #666; font-size: 12px; display: block;">Total Experience</strong><span style="font-weight: 600;">${experience} years</span></div>
-                                    </div>
-                                    <div><strong style="color: #666; font-size: 13px; display: block; margin-bottom: 8px;">Skills</strong>
-                                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                                            ${Array.isArray(skills) && skills.length > 0 ? skills.map(skill => `<span style="background: #e3f2fd; color: #1976d2; padding: 6px 12px; border-radius: 4px; font-size: 13px;">${skill}</span>`).join('') : '<span style="color: #999; font-style: italic;">No skills information</span>'}
+                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                                            <strong style="color: #666; font-size: 12px; display: block; margin-bottom: 4px;">Name</strong>
+                                            <span style="color: #333;">${name}</span>
+                                        </div>
+                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                                            <strong style="color: #666; font-size: 12px; display: block; margin-bottom: 4px;">Email</strong>
+                                            ${email !== 'Not provided' ? `<a href="mailto:${email}" style="color: #007bff; text-decoration: none;">${email}</a>` : '<span style="color: #999;">Not provided</span>'}
+                                        </div>
+                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                                            <strong style="color: #666; font-size: 12px; display: block; margin-bottom: 4px;">Phone</strong>
+                                            ${phone !== 'Not provided' ? `<a href="tel:${phone}" style="color: #007bff; text-decoration: none;">${phone}</a>` : '<span style="color: #999;">Not provided</span>'}
+                                        </div>
+                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                                            <strong style="color: #666; font-size: 12px; display: block; margin-bottom: 4px;">Location</strong>
+                                            <span style="color: #333;">${location}</span>
+                                        </div>
+                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                                            <strong style="color: #666; font-size: 12px; display: block; margin-bottom: 4px;">LinkedIn</strong>
+                                            ${linkedin !== 'Not provided' ? `<a href="${linkedin}" target="_blank" style="color: #007bff; text-decoration: none;">View Profile →</a>` : '<span style="color: #999;">Not provided</span>'}
+                                        </div>
+                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                                            <strong style="color: #666; font-size: 12px; display: block; margin-bottom: 4px;">GitHub</strong>
+                                            ${github !== 'Not provided' ? `<a href="${github}" target="_blank" style="color: #007bff; text-decoration: none;">View Profile →</a>` : '<span style="color: #999;">Not provided</span>'}
                                         </div>
                                     </div>
                                 </div>
                                 
+                                <!-- Professional Information -->
                                 <div style="margin-bottom: 25px;">
-                                    <h3 style="color: #333; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #eee;">📊 ATS Matching Analysis</h3>
+                                    <h3 style="color: #333; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #eee; display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 20px;">💼</span> Professional Information
+                                    </h3>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                                            <strong style="color: #666; font-size: 12px; display: block; margin-bottom: 4px;">Current Role</strong>
+                                            <span style="color: #333;">${currentRole}</span>
+                                        </div>
+                                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                                            <strong style="color: #666; font-size: 12px; display: block; margin-bottom: 4px;">Total Experience</strong>
+                                            <span style="color: #333; font-weight: 600;">${experience} years</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <strong style="color: #666; font-size: 13px; display: block; margin-bottom: 8px;">Skills</strong>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                            ${Array.isArray(skills) && skills.length > 0 
+                                                ? skills.map(skill => `<span style="background: #e3f2fd; color: #1976d2; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 500;">${skill}</span>`).join('') 
+                                                : '<span style="color: #999; font-style: italic;">No skills information available</span>'}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- ATS Matching Analysis -->
+                                <div style="margin-bottom: 25px;">
+                                    <h3 style="color: #333; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #eee; display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 20px;">📊</span> ATS Matching Analysis
+                                    </h3>
                                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 15px;">
-                                        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); border-radius: 10px; color: white;">
-                                            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">Overall Score</div>
+                                        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); border-radius: 10px; color: white; box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);">
+                                            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px; font-weight: 500;">Overall Score</div>
                                             <div style="font-size: 32px; font-weight: bold;">${overallScore}%</div>
                                         </div>
-                                        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%); border-radius: 10px; color: white;">
-                                            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">Skill Match</div>
+                                        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%); border-radius: 10px; color: white; box-shadow: 0 4px 10px rgba(33, 150, 243, 0.3);">
+                                            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px; font-weight: 500;">Skill Match</div>
                                             <div style="font-size: 32px; font-weight: bold;">${skillScore}%</div>
                                         </div>
-                                        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); border-radius: 10px; color: white;">
-                                            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">Experience</div>
+                                        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); border-radius: 10px; color: white; box-shadow: 0 4px 10px rgba(255, 152, 0, 0.3);">
+                                            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px; font-weight: 500;">Experience</div>
                                             <div style="font-size: 32px; font-weight: bold;">${experienceScore}%</div>
                                         </div>
                                     </div>
-                                </div>
-                                
-                                <div style="margin-bottom: 25px;">
-                                    <h3 style="color: #333; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #eee;">🎓 Education & Certifications</h3>
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                                        <div><strong style="color: #666; font-size: 13px; display: block; margin-bottom: 8px;">Education</strong>
-                                            <ul style="margin: 0; padding-left: 20px;">${Array.isArray(education) && education.length > 0 ? education.map(edu => `<li style="margin: 6px 0;">${edu}</li>`).join('') : '<li style="color: #999; font-style: italic; list-style: none; margin-left: -20px;">No education information</li>'}</ul>
-                                        </div>
-                                        <div><strong style="color: #666; font-size: 13px; display: block; margin-bottom: 8px;">Certifications</strong>
-                                            <ul style="margin: 0; padding-left: 20px;">${Array.isArray(certifications) && certifications.length > 0 ? certifications.map(cert => `<li style="margin: 6px 0;">${cert}</li>`).join('') : '<li style="color: #999; font-style: italic; list-style: none; margin-left: -20px;">No certifications</li>'}</ul>
+                                    <div style="padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 6px;">
+                                        <strong style="color: #856404;">Job Requirements:</strong>
+                                        <div style="margin-top: 8px; color: #856404; font-size: 14px;">
+                                            <div>• Position: ${jobTitle} at ${company}</div>
+                                            <div>• Experience Required: ${experienceRequired}</div>
+                                            <div>• Required Skills: ${requiredSkills.length} skills</div>
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <!-- Education & Certifications -->
+                                <div style="margin-bottom: 25px;">
+                                    <h3 style="color: #333; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #eee; display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 20px;">🎓</span> Education & Certifications
+                                    </h3>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                        <div>
+                                            <strong style="color: #666; font-size: 13px; display: block; margin-bottom: 8px;">Education</strong>
+                                            <ul style="margin: 0; padding-left: 20px; color: #333;">
+                                                ${Array.isArray(education) && education.length > 0 
+                                                    ? education.map(edu => `<li style="margin: 6px 0;">${edu}</li>`).join('') 
+                                                    : '<li style="color: #999; font-style: italic; list-style: none; margin-left: -20px;">No education information available</li>'}
+                                            </ul>
+                                        </div>
+                                        <div>
+                                            <strong style="color: #666; font-size: 13px; display: block; margin-bottom: 8px;">Certifications</strong>
+                                            <ul style="margin: 0; padding-left: 20px; color: #333;">
+                                                ${Array.isArray(certifications) && certifications.length > 0 
+                                                    ? certifications.map(cert => `<li style="margin: 6px 0;">${cert}</li>`).join('') 
+                                                    : '<li style="color: #999; font-style: italic; list-style: none; margin-left: -20px;">No certifications available</li>'}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Experience Timeline -->
+                                ${experienceTimeline && experienceTimeline.length > 0 ? `
+                                <div style="margin-bottom: 20px;">
+                                    <h3 style="color: #333; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #eee; display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 20px;">📅</span> Work Experience
+                                    </h3>
+                                    ${experienceTimeline.map(exp => `
+                                        <div style="padding: 12px; background: #f8f9fa; border-left: 3px solid #667eea; margin-bottom: 10px; border-radius: 4px;">
+                                            <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${exp.role || 'Role not specified'}</div>
+                                            <div style="font-size: 13px; color: #666; margin-bottom: 4px;">${exp.company || 'Company not specified'}</div>
+                                            <div style="font-size: 12px; color: #999;">${exp.duration || 'Duration not specified'}</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                ` : ''}
                             </div>
                             
+                            <!-- Footer -->
                             <div style="padding: 20px; border-top: 1px solid #eee; background: #f9f9f9; display: flex; justify-content: flex-end; gap: 10px;">
-                                <button class="modal-close-btn-footer" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Close</button>
-                                ${email !== 'Not provided' ? `<button class="contact-candidate-btn" data-email="${email}" data-job="${jobTitle}" data-company="${company}" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">📧 Contact Candidate</button>` : ''}
+                                <button onclick="closeEmergencyModal()" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: background 0.3s;" onmouseover="this.style.background='#5a6268'" onmouseout="this.style.background='#6c757d'">Close</button>
+                                ${email !== 'Not provided' ? `
+                                <button onclick="window.location.href='mailto:${email}?subject=Job Opportunity - ${jobTitle} Position at ${company}'" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: background 0.3s;" onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">📧 Contact Candidate</button>
+                                ` : ''}
                             </div>
                         </div>
                     `;
                     
                     document.body.appendChild(modal);
                     document.body.style.overflow = 'hidden';
-                    
-                    // Add event listeners to buttons
-                    modal.querySelectorAll('.modal-close-btn, .modal-close-btn-footer').forEach(btn => {
-                        btn.addEventListener('click', closeEmergencyModal);
-                    });
-                    
-                    const contactBtn = modal.querySelector('.contact-candidate-btn');
-                    if (contactBtn) {
-                        contactBtn.addEventListener('click', function() {
-                            const email = this.dataset.email;
-                            const job = this.dataset.job;
-                            const company = this.dataset.company;
-                            window.location.href = `mailto:${email}?subject=Job Opportunity - ${job} Position at ${company}`;
-                        });
-                    }
                     
                     if (typeof Utils !== 'undefined' && Utils.hideLoading) {
                         Utils.hideLoading();
@@ -438,6 +395,7 @@
                 });
         }
         
+        // Function to close the emergency modal
         function closeEmergencyModal() {
             const modal = document.querySelector('.emergency-candidate-modal');
             if (modal) {
@@ -446,20 +404,23 @@
             }
         }
         
+        // Override the global function to ensure it works
         window.showCandidateDetails = showCandidateDetails;
         window.closeEmergencyModal = closeEmergencyModal;
         
+        // Close modal when clicking outside
         document.addEventListener('click', function(event) {
             if (event.target.classList.contains('emergency-candidate-modal')) {
                 closeEmergencyModal();
             }
         });
         
-        console.log("✅ Enhanced candidate modal registered");
+        console.log("✅ Enhanced candidate modal functions registered successfully");
     </script>
 
-    <!-- User Info Display and Logout -->
+    <!-- User Info Display and Logout Script -->
     <script>
+        // Display user info and logout button
         window.addEventListener('DOMContentLoaded', () => {
             displayUserInfo();
         });
@@ -476,38 +437,86 @@
                 userInfoDiv.innerHTML = `
                     <div style="display: flex; align-items: center; gap: 15px;">
                         <div style="text-align: right;">
-                            <div style="font-weight: 600; font-size: 15px; margin-bottom: 2px;">${currentUser.full_name}</div>
-                            <div style="font-size: 12px; opacity: 0.9; background: ${roleColor}; color: #333; padding: 2px 8px; border-radius: 10px; display: inline-block;">${roleIcon} ${roleName}</div>
+                            <div style="font-weight: 600; font-size: 15px; margin-bottom: 2px;">
+                                ${currentUser.full_name}
+                            </div>
+                            <div style="font-size: 12px; opacity: 0.9; background: ${roleColor}; color: #333; padding: 2px 8px; border-radius: 10px; display: inline-block;">
+                                ${roleIcon} ${roleName}
+                            </div>
                         </div>
-                        <button id="logout-btn" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid white; color: white; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">Logout</button>
+                        <button onclick="handleLogout()" style="
+                            padding: 8px 16px;
+                            background: rgba(255,255,255,0.2);
+                            border: 1px solid white;
+                            color: white;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 13px;
+                            font-weight: 500;
+                            transition: all 0.3s;
+                        " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                            Logout
+                        </button>
                     </div>
                 `;
-                
-                document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
             } else {
-                userInfoDiv.innerHTML = `<a href="/login" style="color: white; text-decoration: none; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 6px; font-size: 14px; font-weight: 500; display: inline-block;">Login</a>`;
+                userInfoDiv.innerHTML = `
+                    <a href="/login" style="
+                        color: white;
+                        text-decoration: none;
+                        padding: 8px 16px;
+                        background: rgba(255,255,255,0.2);
+                        border-radius: 6px;
+                        font-size: 14px;
+                        font-weight: 500;
+                        transition: all 0.3s;
+                        display: inline-block;
+                    " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                        Login
+                    </a>
+                `;
             }
         }
 
         async function handleLogout() {
-            if (!confirm('Are you sure you want to logout?')) return;
+            if (!confirm('Are you sure you want to logout?')) {
+                return;
+            }
 
             try {
-                await fetch('/api/users/logout', { method: 'POST', credentials: 'include' });
+                // Call logout API
+                const response = await fetch('/api/users/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                // Clear local storage
                 localStorage.removeItem('session_token');
                 localStorage.removeItem('current_user');
+
+                // Show success message
                 if (typeof Utils !== 'undefined' && Utils.showToast) {
                     Utils.showToast('Logged out successfully!', 'success');
                 }
-                setTimeout(() => { window.location.href = '/login'; }, 1000);
+
+                // Redirect to login page after a short delay
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 1000);
+
             } catch (error) {
                 console.error('Logout error:', error);
+                
+                // Clear storage anyway
                 localStorage.removeItem('session_token');
                 localStorage.removeItem('current_user');
+                
+                // Redirect to login
                 window.location.href = '/login';
             }
         }
 
+        // Make logout function globally available
         window.handleLogout = handleLogout;
     </script>
 
