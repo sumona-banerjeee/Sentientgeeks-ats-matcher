@@ -23,7 +23,7 @@ async def upload_resumes(
 ):
     if len(files) > MAX_RESUMES_PER_UPLOAD:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Too many files. Maximum {MAX_RESUMES_PER_UPLOAD} resumes per upload."
         )
     
@@ -38,24 +38,31 @@ async def upload_resumes(
     print(f"Session ID: {session_id}")
     print(f"{'='*60}\n")
     
-    # CRITICAL FIX: Get ALL existing resumes and normalize filenames
+    # Get existing resumes from database
     existing_resumes = db.query(Resume).filter(
         Resume.session_id == session_id
     ).all()
     
-    # Create normalized filename set (lowercase + stripped)
+    def super_normalize(filename: str) -> str:
+        """Ultra-aggressive normalization for duplicate detection"""
+        import re
+        name = filename.lower().strip()
+        if name.endswith('.pdf'):
+            name = name[:-4]
+        name = re.sub(r'[^\w]', '', name)
+        return name
+    
     existing_filenames = {
-        resume.filename.lower().strip().replace(' ', '_') 
+        super_normalize(resume.filename): resume.filename
         for resume in existing_resumes
     }
     
     print(f"📋 Found {len(existing_filenames)} existing resumes in session")
-    print(f"   Existing files: {list(existing_filenames)[:5]}")
     
-    # NEW: Track filenames being processed in current batch
+    # Track filenames in current upload
     current_batch_filenames = set()
     
-    # Process in batches of 10 for better performance
+    # Process in batches
     BATCH_SIZE = 10
     total_batches = (len(files) + BATCH_SIZE - 1) // BATCH_SIZE
     
@@ -66,25 +73,29 @@ async def upload_resumes(
         
         print(f"\n📦 Processing Batch {batch_num + 1}/{total_batches} ({len(batch_files)} resumes)...")
         
+        # Collect resumes to add in this batch
+        batch_resumes_to_add = []
+        
         for file in batch_files:
             try:
-                # ENHANCED: Normalize filename for comparison
                 original_filename = file.filename
-                normalized_filename = original_filename.lower().strip().replace(' ', '_')
+                normalized_filename = super_normalize(original_filename)
                 
                 # CHECK 1: Already exists in database?
                 if normalized_filename in existing_filenames:
-                    print(f"⚠️  DUPLICATE (DB): {original_filename} - SKIPPING")
+                    existing_name = existing_filenames[normalized_filename]
+                    print(f"⚠️ DUPLICATE (DB): {original_filename} matches '{existing_name}' - SKIPPING")
                     skipped_duplicates.append({
                         "filename": original_filename,
+                        "matched_existing": existing_name,
                         "reason": "Already uploaded in this session (database)",
                         "status": "skipped"
                     })
                     continue
                 
-                # CHECK 2: Already processed in current batch?
+                # CHECK 2: Already in current batch?
                 if normalized_filename in current_batch_filenames:
-                    print(f"⚠️  DUPLICATE (BATCH): {original_filename} - SKIPPING")
+                    print(f"⚠️ DUPLICATE (BATCH): {original_filename} - SKIPPING")
                     skipped_duplicates.append({
                         "filename": original_filename,
                         "reason": "Duplicate in current upload batch",
@@ -92,11 +103,11 @@ async def upload_resumes(
                     })
                     continue
                 
-                # CRITICAL: Add to current batch tracker IMMEDIATELY
+                # Add to tracking BEFORE processing
                 current_batch_filenames.add(normalized_filename)
-                existing_filenames.add(normalized_filename)  # Also update main set
+                existing_filenames[normalized_filename] = original_filename
                 
-                # Save file with ORIGINAL filename (preserve user's naming)
+                # Save file
                 file_path = f"./data/uploads/resumes/{session_id}_{original_filename}"
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
                 
@@ -104,13 +115,11 @@ async def upload_resumes(
                     content = await file.read()
                     f.write(content)
                 
-                # Extract text from PDF
+                # Extract and process
                 resume_text = pdf_processor.extract_text_from_pdf(file_path)
-                
-                # Extract structured data using LLM
                 structured_data = await llm_service.extract_resume_information(resume_text)
                 
-                # Normalize skills to array
+                # Normalize skills
                 if 'skills' in structured_data:
                     if isinstance(structured_data['skills'], dict):
                         structured_data['skills'] = list(structured_data['skills'].values())
@@ -121,9 +130,9 @@ async def upload_resumes(
                 else:
                     structured_data['skills'] = []
                 
-                # Create database record with ORIGINAL filename
+                # Create resume object (DON'T commit yet)
                 resume = Resume(
-                    filename=original_filename,  # Keep original filename for display
+                    filename=original_filename,
                     file_path=file_path,
                     extracted_text=resume_text,
                     structured_data=structured_data,
@@ -132,18 +141,14 @@ async def upload_resumes(
                     session_id=session_id
                 )
                 
-                db.add(resume)
-                db.commit()
-                db.refresh(resume)
-                
-                processed_resumes.append({
-                    "id": resume.id,
-                    "filename": resume.filename,
-                    "structured_data": structured_data,
-                    "processing_status": "success"
+                batch_resumes_to_add.append({
+                    'resume_obj': resume,
+                    'structured_data': structured_data,
+                    'filename': original_filename,
+                    'normalized': normalized_filename
                 })
                 
-                print(f"✅ SUCCESS: {original_filename}")
+                print(f"✅ PROCESSED: {original_filename}")
                 
             except Exception as e:
                 print(f"❌ ERROR: {file.filename} - {str(e)}")
@@ -152,19 +157,49 @@ async def upload_resumes(
                     "processing_status": "failed",
                     "error": str(e)
                 })
-                # Remove from batch tracker if processing failed
+                
+                # Remove from tracking if failed
                 if normalized_filename in current_batch_filenames:
                     current_batch_filenames.remove(normalized_filename)
-                    existing_filenames.remove(normalized_filename)
+                if normalized_filename in existing_filenames:
+                    del existing_filenames[normalized_filename]
                 continue
         
-        # Commit batch
+        # COMMIT ALL RESUMES IN BATCH AT ONCE
         try:
-            db.commit()
-            print(f"✅ Batch {batch_num + 1} committed to database")
+            for item in batch_resumes_to_add:
+                db.add(item['resume_obj'])
+            
+            db.commit()  # Single commit for entire batch
+            
+            # Refresh and add to processed list
+            for item in batch_resumes_to_add:
+                db.refresh(item['resume_obj'])
+                processed_resumes.append({
+                    "id": item['resume_obj'].id,
+                    "filename": item['filename'],
+                    "structured_data": item['structured_data'],
+                    "processing_status": "success"
+                })
+            
+            print(f"✅ Batch {batch_num + 1} committed ({len(batch_resumes_to_add)} resumes)")
+            
         except Exception as e:
             print(f"❌ Batch commit error: {e}")
             db.rollback()
+            
+            # Mark all batch items as failed and remove from tracking
+            for item in batch_resumes_to_add:
+                failed_resumes.append({
+                    "filename": item['filename'],
+                    "processing_status": "failed",
+                    "error": f"Batch commit failed: {str(e)}"
+                })
+                
+                if item['normalized'] in current_batch_filenames:
+                    current_batch_filenames.remove(item['normalized'])
+                if item['normalized'] in existing_filenames:
+                    del existing_filenames[item['normalized']]
     
     print(f"\n{'='*60}")
     print(f"📊 UPLOAD SUMMARY:")

@@ -12,14 +12,27 @@ class EnhancedAgenticATSService:
     def __init__(self):
         # Choosing the LLM backend
         self.use_groq = os.getenv("USE_GROQ", "true").lower() == "true"
-        
-        if self.use_groq:
+    
+        # Check if Perplexity should be used
+        use_perplexity = os.getenv("USE_PERPLEXITY", "true").lower() == "true"
+
+        if use_perplexity:
+            self.llm = LLM(
+                model="perplexity/sonar-pro",
+                api_key=os.getenv("PERPLEXITY_API_KEY"),
+                base_url="https://api.perplexity.ai",
+                temperature=0.1
+            )
+            print("✅ Using Perplexity AI with Sonar Pro (Web-grounded & Reliable!)")
+
+        elif self.use_groq:
             self.llm = LLM(
                 model="groq/llama-3.3-70b-versatile",
                 api_key=os.getenv("GROQ_API_KEY"),
                 temperature=0.1
             )
             print("✅ Using Groq AI with Llama 3.3 70B (Fast & Free!)")
+
         else:
             self.llm = LLM(
                 model="gpt-4-turbo-preview",
@@ -27,13 +40,14 @@ class EnhancedAgenticATSService:
                 temperature=0.1
             )
             print("✅ Using OpenAI GPT-4")
-        
+
         # Initialize specialized agents
         self.resume_analyzer = self._create_resume_analyzer()
         self.jd_analyzer = self._create_jd_analyzer()
         self.skills_matcher = self._create_skills_matcher()
         self.experience_evaluator = self._create_experience_evaluator()
         self.scorer = self._create_scorer()
+
     
     def _create_resume_analyzer(self) -> Agent:
         return Agent(

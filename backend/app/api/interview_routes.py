@@ -17,9 +17,10 @@ async def generate_interview_questions(
     
     # Getting the JD data
     jd = db.query(JobDescription).filter(
-        JobDescription.session_id == session_id,
-        JobDescription.is_approved == True
+        JobDescription.session_id == session_id
     ).first()
+
+
     
     if not jd:
         raise HTTPException(

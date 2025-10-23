@@ -77,10 +77,17 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
     matching_results = []
     
     for i, resume in enumerate(resumes):
+        # Add delay to avoid Groq API rate limits
+        if i > 0:
+            print(f"⏳ Waiting 5 seconds to avoid rate limits...")
+            import time
+            time.sleep(5)
+    
         try:
-            print(f"\n{'─'*60}")
+            print("=" * 60)
             print(f"Processing resume {i+1}/{len(resumes)}: {resume.filename}")
-            print(f"{'─'*60}")
+            print("=" * 60)
+
             
             # Ensuring the valid structured data
             jd_data = jd.structured_data if jd.structured_data else {}
@@ -109,9 +116,28 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
                     print(f"Agentic AI Result: {agentic_result}")
                     
                     # Extracting the scores from agentic result
-                    overall_score = float(agentic_result.get('overall_score', 0))
-                    skills_score = float(agentic_result.get('skill_match_score', 0))
-                    experience_score = float(agentic_result.get('experience_match_score', 0))
+                    #overall_score = float(agentic_result.get('overall_score', 0))
+                    #skills_score = float(agentic_result.get('skill_match_score', 0))
+                    #experience_score = float(agentic_result.get('experience_match_score', 0))
+
+                    # Extracting the scores from agentic result - HANDLE BOTH NAMING CONVENTIONS
+                    overall_score = float(
+                        agentic_result.get('overallscore') or 
+                        agentic_result.get('overall_score') or 0
+                    )
+
+                    skills_score = float(
+                        agentic_result.get('skillmatchscore') or 
+                        agentic_result.get('skill_match_score') or 
+                        agentic_result.get('skillMatchScore') or 0
+                    )
+
+                    experience_score = float(
+                        agentic_result.get('experiencescore') or 
+                        agentic_result.get('experience_match_score') or 
+                        agentic_result.get('experience_score') or 
+                        agentic_result.get('experienceScore') or 0
+                    )
                     detailed_analysis = agentic_result.get('detailed_analysis', {})
                     
                     # Adding agentic-specific data to analysis

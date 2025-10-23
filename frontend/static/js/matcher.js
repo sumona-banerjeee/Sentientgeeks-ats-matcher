@@ -619,13 +619,12 @@ async function generateInterviewQuestions(regenerate = false) {
         // Update button states
         updateInterviewButtonStates(true);
         
-        const response = await Utils.makeRequest(`/api/interview/generate-questions/${sessionId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ regenerate: regenerate })
-        });
+        const response = await Utils.makeRequest(`/api/interview/generate-questions/${sessionId}?regenerate=${regenerate}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+
         
         currentInterviewQuestions = response.questions;
         displayInterviewQuestions(response);

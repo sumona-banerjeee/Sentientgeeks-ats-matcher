@@ -8,7 +8,7 @@ import traceback
 
 class MatchingEngine:
     def __init__(self):
-        """Initialize the enhanced matching engine with experience requirement matching"""
+        """Initialize the enhanced matching engine with strict experience relevance"""
         try:
             try:
                 self.nlp = spacy.load("en_core_web_md")
@@ -21,95 +21,145 @@ class MatchingEngine:
             self.nlp = None
     
     def calculate_ats_score(self, jd_data: dict, resume_data: dict, skills_weightage: dict, manual_priorities: List[Dict] = None) -> dict:
-        """Calculate enhanced ATS score with experience requirement matching"""
+        """
+        Calculate ATS score with STRICT experience relevance matching
         
-        print(f"Starting FINAL ATS scoring with experience requirements...")
-        print(f"JD data available: {bool(jd_data)}")
-        print(f"Resume data available: {bool(resume_data)}")
-        print(f"Manual priorities provided: {bool(manual_priorities)}")
+        Key Changes:
+        - Candidates without relevant job role experience get 0 overall score
+        - Only experience in matching roles contributes to scoring
+        - Universal system works for any job description
+        """
+        
+        print(f"\n{'='*70}")
+        print(f"STARTING STRICT EXPERIENCE-BASED ATS SCORING")
+        print(f"{'='*70}\n")
         
         if not jd_data or not resume_data:
             return self._get_default_score("Missing JD or resume data")
         
         try:
-            # Extract JD experience requirement
+            # STEP 1: Extract JD Requirements
             jd_experience_required = self._extract_experience_requirement(jd_data)
-            print(f"JD Experience Required: {jd_experience_required} years")
-            
-            # Extract job role priorities
             job_priorities = self._extract_job_priorities(jd_data, manual_priorities)
-            print(f"Job Priorities: {[(p['role'], p['priority']) for p in job_priorities]}")
             
-            # Enhanced: Parse resume skills properly
+            print(f"📋 JD Analysis:")
+            print(f"   Required Experience: {jd_experience_required} years")
+            print(f"   Job Priorities: {[(p['role'], p['priority']) for p in job_priorities]}")
+            
+            # STEP 2: Extract and Enhance Resume Data
             resume_skills = self._extract_resume_skills(resume_data)
-            print(f"Extracted Resume Skills: {len(resume_skills)} skills")
-            
-            # Enhanced: Parse experience with description analysis
             enhanced_experience = self._enhance_experience_data(resume_data, job_priorities)
-            print(f"Enhanced Experience Timeline: {len(enhanced_experience)} jobs")
             
-            # Update resume data with enhanced information
             enhanced_resume_data = resume_data.copy()
             enhanced_resume_data['skills'] = resume_skills
             enhanced_resume_data['experience_timeline'] = enhanced_experience
             
-            # SCORE 1: Complete Skills Matching (0-100 points)
+            print(f"\n👤 Resume Analysis:")
+            print(f"   Total Experience: {resume_data.get('total_experience', 0)} years")
+            print(f"   Skills: {len(resume_skills)} identified")
+            print(f"   Experience Timeline: {len(enhanced_experience)} jobs")
+            
+            # STEP 3: Calculate Relevant Experience (CRITICAL)
+            relevant_experience_years, relevance_details = self._calculate_relevant_experience(
+                enhanced_experience, job_priorities)
+            
+            print(f"\n🎯 RELEVANT EXPERIENCE CHECK:")
+            print(f"   Total Relevant Experience: {relevant_experience_years:.1f} years")
+            print(f"   Matching Jobs: {relevance_details['matching_jobs_count']}")
+            
+            # STEP 4: STRICT FILTERING - No relevant experience = 0 score
+            if relevant_experience_years == 0 or relevance_details['matching_jobs_count'] == 0:
+                print(f"\n❌ REJECTED: No relevant job role experience found")
+                print(f"   Candidate has no experience matching: {[p['role'] for p in job_priorities]}")
+                
+                return {
+                    "overall_score": 0.0,
+                    "skill_match_score": 0.0,
+                    "experience_score": 0.0,
+                    "qualification_score": 0.0,
+                    "detailed_analysis": {
+                        "rejection_reason": "No relevant job role experience",
+                        "required_roles": [p['role'] for p in job_priorities],
+                        "candidate_experience": [
+                            {
+                                "role": exp.get('role', 'Unknown'),
+                                "company": exp.get('company', 'Unknown'),
+                                "duration": exp.get('duration', 'Unknown')
+                            }
+                            for exp in enhanced_experience
+                        ],
+                        "relevant_experience_years": 0.0,
+                        "matching_jobs_count": 0
+                    }
+                }
+            
+            # STEP 5: Calculate Scores (only for candidates with relevant experience)
+            print(f"\n✅ QUALIFIED: Candidate has relevant experience")
+            
+            # Skills Score (0-100)
             skills_score = self._calculate_complete_skills_score(
                 enhanced_resume_data, job_priorities, skills_weightage
             )
             
-            # SCORE 2: Enhanced Experience Matching with JD Requirements (0-100 points)
-            experience_score = self._calculate_enhanced_experience_score(
-                enhanced_resume_data, job_priorities, jd_experience_required
+            # Experience Score (0-100) - considers ONLY relevant experience
+            experience_score = self._calculate_enhanced_experience_score_v2(
+                enhanced_resume_data, job_priorities, jd_experience_required,
+                relevant_experience_years, relevance_details
             )
             
-            # FINAL SCORE CALCULATION
-            total_experience = enhanced_resume_data.get('total_experience', 0)
-            experience_timeline = enhanced_experience
-            
-            # Determine if candidate is fresh graduate
-            is_fresh_graduate = (total_experience == 0 or not experience_timeline)
+            # STEP 6: Final Score Calculation
+            total_experience = resume_data.get('total_experience', 0)
+            is_fresh_graduate = (total_experience == 0 or not enhanced_experience)
             
             if is_fresh_graduate:
-                # Fresh graduates: Use skills score with penalty if experience required
                 if jd_experience_required > 0:
-                    # Apply penalty for missing experience
-                    penalty = min(30, jd_experience_required * 10)  # Max 30% penalty
+                    penalty = min(30, jd_experience_required * 10)
                     final_score = max(0, skills_score - penalty)
                     score_method = f"Skills-Based with {penalty}% experience penalty"
                 else:
                     final_score = skills_score
                     score_method = "Skills-Based (No experience required)"
-                print(f"Fresh Graduate - Score: {final_score:.2f}%")
             else:
-                # Experienced candidates: Average of both scores
+                # Average of skills and experience (both weighted equally)
                 final_score = (skills_score + experience_score) / 2
-                score_method = "Skills + Experience Average"
-                print(f"Experienced - Average Score: ({skills_score:.1f}% + {experience_score:.1f}%) ÷ 2 = {final_score:.2f}%")
+                score_method = "Skills + Relevant Experience Average"
             
-            # Detailed analysis
+            print(f"\n📊 FINAL SCORES:")
+            print(f"   Skills Score: {skills_score:.1f}/100")
+            print(f"   Experience Score: {experience_score:.1f}/100")
+            print(f"   Overall Score: {final_score:.1f}/100")
+            print(f"   Method: {score_method}")
+            
+            # STEP 7: Detailed Analysis
             detailed_analysis = {
                 "job_priorities": job_priorities,
                 "jd_experience_required": jd_experience_required,
                 "candidate_total_experience": total_experience,
+                "candidate_relevant_experience": relevant_experience_years,
                 "scoring_method": score_method,
                 "is_fresh_graduate": is_fresh_graduate,
-                "enhanced_skills": resume_skills,
-                "enhanced_experience": enhanced_experience,
-                "skills_analysis": self._get_complete_skills_analysis(enhanced_resume_data, job_priorities, skills_weightage),
-                "experience_analysis": self._get_enhanced_experience_analysis(enhanced_resume_data, job_priorities, jd_experience_required),
+                "relevance_check": {
+                    "has_relevant_experience": True,
+                    "relevant_years": relevant_experience_years,
+                    "matching_jobs": relevance_details['matching_jobs'],
+                    "matching_jobs_count": relevance_details['matching_jobs_count']
+                },
+                "skills_analysis": self._get_complete_skills_analysis(
+                    enhanced_resume_data, job_priorities, skills_weightage
+                ),
+                "experience_analysis": self._get_enhanced_experience_analysis(
+                    enhanced_resume_data, job_priorities, jd_experience_required
+                ),
                 "scoring_breakdown": {
                     "skills_score": round(skills_score, 2),
                     "experience_score": round(experience_score, 2),
                     "final_score": round(final_score, 2),
                     "scoring_method": score_method,
-                    "meets_experience_requirement": total_experience >= jd_experience_required
+                    "meets_experience_requirement": relevant_experience_years >= jd_experience_required
                 }
             }
             
-            print(f"FINAL ATS Score: {final_score:.2f}%")
-            print(f"Skills: {skills_score:.1f}/100 | Experience: {experience_score:.1f}/100")
-            print(f"Experience Requirement: {jd_experience_required} years | Candidate: {total_experience} years")
+            print(f"{'='*70}\n")
             
             return {
                 "overall_score": round(min(100, max(0, final_score)), 2),
@@ -120,9 +170,238 @@ class MatchingEngine:
             }
             
         except Exception as e:
-            print(f"Error in final matching calculation: {str(e)}")
+            print(f"❌ Error in matching calculation: {str(e)}")
             traceback.print_exc()
             return self._get_default_score(str(e))
+    
+    def _calculate_relevant_experience(
+        self, 
+        experience_timeline: List[Dict], 
+        job_priorities: List[Dict]
+    ) -> Tuple[float, Dict]:
+        """
+        Calculate ONLY relevant experience that matches JD requirements
+        
+        Returns:
+            - Total relevant experience in years
+            - Details about matching jobs
+        """
+        
+        if not experience_timeline:
+            return (0.0, {
+                "matching_jobs": [],
+                "matching_jobs_count": 0,
+                "non_matching_jobs": []
+            })
+        
+        # Collect all required role keywords from priorities
+        required_role_keywords = set()
+        priority_skills = set()
+        
+        for priority in job_priorities:
+            role_name = priority['role'].lower()
+            key_skills = [skill.lower() for skill in priority['key_skills']]
+            
+            # Extract role keywords (remove common suffixes)
+            role_keywords = role_name.replace(' developer', '').replace(' engineer', '').split()
+            required_role_keywords.update(role_keywords)
+            priority_skills.update(key_skills)
+        
+        print(f"\n🔍 Required Role Keywords: {required_role_keywords}")
+        print(f"🔍 Priority Skills: {list(priority_skills)[:10]}")
+        
+        # Analyze each job experience
+        relevant_years = 0.0
+        matching_jobs = []
+        non_matching_jobs = []
+        
+        for exp in experience_timeline:
+            exp_role = exp.get('role', '').lower()
+            exp_techs = [tech.lower() for tech in exp.get('technologies_used', [])]
+            exp_duration = exp.get('duration', '')
+            exp_company = exp.get('company', '')
+            
+            # Calculate years for this experience
+            years = self._extract_years_from_duration(exp_duration)
+            
+            # Check if this experience is relevant
+            is_relevant = False
+            relevance_score = 0.0
+            matching_reasons = []
+            
+            # Check 1: Role title matching
+            role_match_count = 0
+            for keyword in required_role_keywords:
+                if keyword in exp_role and keyword not in ['developer', 'engineer', 'software']:
+                    role_match_count += 1
+                    matching_reasons.append(f"Role contains '{keyword}'")
+            
+            if role_match_count > 0:
+                relevance_score += 0.5
+                is_relevant = True
+            
+            # Check 2: Technology/Skills matching
+            tech_match_count = 0
+            matched_techs = []
+            for skill in priority_skills:
+                if any(skill in tech for tech in exp_techs):
+                    tech_match_count += 1
+                    matched_techs.append(skill)
+            
+            if tech_match_count >= 2:  # At least 2 matching technologies
+                relevance_score += 0.5
+                is_relevant = True
+                matching_reasons.append(f"{tech_match_count} matching technologies")
+            
+            # Determine if job is relevant
+            if is_relevant and relevance_score >= 0.5:
+                relevant_years += years
+                matching_jobs.append({
+                    "role": exp.get('role', 'Unknown'),
+                    "company": exp_company,
+                    "duration": exp_duration,
+                    "years": years,
+                    "relevance_score": relevance_score,
+                    "matching_reasons": matching_reasons,
+                    "matched_technologies": matched_techs
+                })
+                print(f"   ✅ RELEVANT: {exp.get('role')} at {exp_company} ({years}y) - {matching_reasons}")
+            else:
+                non_matching_jobs.append({
+                    "role": exp.get('role', 'Unknown'),
+                    "company": exp_company,
+                    "duration": exp_duration,
+                    "years": years
+                })
+                print(f"   ❌ NOT RELEVANT: {exp.get('role')} at {exp_company} - No role/skill match")
+        
+        return (relevant_years, {
+            "matching_jobs": matching_jobs,
+            "matching_jobs_count": len(matching_jobs),
+            "non_matching_jobs": non_matching_jobs
+        })
+    
+    def _calculate_enhanced_experience_score_v2(
+        self,
+        resume_data: Dict,
+        job_priorities: List[Dict],
+        jd_experience_required: float,
+        relevant_experience_years: float,
+        relevance_details: Dict
+    ) -> float:
+        """
+        Calculate experience score based ONLY on relevant experience
+        
+        Args:
+            relevant_experience_years: Years of experience in matching roles
+            relevance_details: Details about matching jobs
+        """
+        
+        print(f"\n[ENHANCED EXPERIENCE SCORING V2]")
+        print(f"   JD Required: {jd_experience_required} years")
+        print(f"   Relevant Experience: {relevant_experience_years} years")
+        
+        # If no relevant experience, return 0
+        if relevant_experience_years == 0:
+            return 0.0
+        
+        # COMPONENT 1: Experience Requirement Match (50% weight)
+        requirement_score = self._calculate_experience_requirement_score(
+            relevant_experience_years, jd_experience_required
+        )
+        
+        # COMPONENT 2: Quality of Relevant Experience (30% weight)
+        quality_score = self._calculate_experience_quality_score(relevance_details)
+        
+        # COMPONENT 3: Recent/Current Relevant Experience Bonus (20% weight)
+        recency_score = self._calculate_recent_experience_bonus_v2(
+            resume_data.get('experience_timeline', []), job_priorities
+        )
+        
+        # Final calculation
+        final_score = (requirement_score * 0.5) + (quality_score * 0.3) + (recency_score * 0.2)
+        
+        print(f"   Score Breakdown:")
+        print(f"      • Requirement Match: {requirement_score:.1f}/100 (50%)")
+        print(f"      • Experience Quality: {quality_score:.1f}/100 (30%)")
+        print(f"      • Recency Bonus: {recency_score:.1f}/100 (20%)")
+        print(f"      • Final: {final_score:.1f}/100")
+        
+        return min(100, max(0, final_score))
+    
+    def _calculate_experience_quality_score(self, relevance_details: Dict) -> float:
+        """Calculate quality score based on how well experience matches"""
+        
+        matching_jobs = relevance_details.get('matching_jobs', [])
+        
+        if not matching_jobs:
+            return 0.0
+        
+        # Quality factors:
+        # 1. Number of relevant jobs
+        # 2. Average relevance score
+        # 3. Diversity of matched technologies
+        
+        num_jobs = len(matching_jobs)
+        avg_relevance = sum(job['relevance_score'] for job in matching_jobs) / num_jobs
+        
+        # All matched technologies across jobs
+        all_matched_techs = set()
+        for job in matching_jobs:
+            all_matched_techs.update(job.get('matched_technologies', []))
+        
+        tech_diversity = len(all_matched_techs)
+        
+        # Scoring
+        job_count_score = min(100, num_jobs * 25)  # 25 points per relevant job, max 100
+        relevance_score = avg_relevance * 100
+        tech_score = min(100, tech_diversity * 15)  # 15 points per unique tech, max 100
+        
+        quality_score = (job_count_score * 0.4) + (relevance_score * 0.4) + (tech_score * 0.2)
+        
+        return min(100, quality_score)
+    
+    def _calculate_recent_experience_bonus_v2(
+        self, 
+        experience_timeline: List[Dict], 
+        job_priorities: List[Dict]
+    ) -> float:
+        """Calculate bonus for current/recent relevant experience"""
+        
+        if not experience_timeline:
+            return 0.0
+        
+        current_year = datetime.now().year
+        max_bonus = 0.0
+        
+        # Collect priority skills
+        priority_skills = set()
+        for priority in job_priorities:
+            priority_skills.update([s.lower() for s in priority['key_skills']])
+        
+        for exp in experience_timeline:
+            exp_duration = exp.get('duration', '').lower()
+            exp_techs = [t.lower() for t in exp.get('technologies_used', [])]
+            
+            is_current = ('present' in exp_duration or 'current' in exp_duration)
+            is_recent = any(str(year) in exp_duration for year in [current_year, current_year - 1])
+            
+            if is_current or is_recent:
+                # Check if this current/recent experience is relevant
+                matched_skills = sum(1 for skill in priority_skills if any(skill in tech for tech in exp_techs))
+                
+                if matched_skills > 0:
+                    relevance_ratio = min(1.0, matched_skills / len(priority_skills))
+                    
+                    if is_current:
+                        bonus = 100 * relevance_ratio
+                    else:
+                        bonus = 70 * relevance_ratio
+                    
+                    max_bonus = max(max_bonus, bonus)
+        
+        return max_bonus
+    
     
     
     def _extract_experience_requirement(self, jd_data: Dict) -> float:

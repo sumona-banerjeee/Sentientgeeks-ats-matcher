@@ -235,34 +235,31 @@ Return the updated structure:
             if json_match:
                 return json.loads(json_match.group())
             
-            print(f"⚠️ Could not extract JSON from response")
+            print(f"Could not extract JSON from response")
             print(f"Response preview: {response[:200]}")
             
             return {"error": f"Failed to parse {operation}", "raw_response": response[:500]}
         
         except Exception as e:
-            print(f"❌ Parse error in {operation}: {str(e)}")
+            print(f"Parse error in {operation}: {str(e)}")
             return {"error": f"Failed to parse {operation}", "exception": str(e)}
     
     def health_check(self) -> bool:
-        """
-        Check if Ollama service is reachable
-        """
         try:
             response = requests.get(
                 f"{self.base_url}/api/tags",
                 timeout=5
             )
-            
+        
             if response.status_code == 200:
-                print(f"✅ Ollama service is healthy")
+                print(f"Ollama service is healthy")
                 return True
             else:
-                print(f"⚠️ Ollama service returned status {response.status_code}")
+                print(f"Ollama service returned status {response.status_code}")
                 return False
-        
+    
         except Exception as e:
-            print(f"❌ Ollama health check failed: {str(e)}")
+            print(f"Ollama health check failed: {str(e)}")
             return False
 
 

@@ -23,6 +23,11 @@ class Settings:
     USE_AGENTIC_AI: bool = False
     USE_GROQ: bool = False
 
+    # Perplexity settings for Agentic AI
+    USE_PERPLEXITY: bool = os.getenv("USE_PERPLEXITY", "true").lower() == "true"
+    PERPLEXITY_MODEL: str = os.getenv("PERPLEXITY_MODEL", "sonar-pro")
+
+
 settings = Settings()
 
 

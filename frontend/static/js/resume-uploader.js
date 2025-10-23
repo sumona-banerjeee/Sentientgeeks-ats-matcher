@@ -1,7 +1,24 @@
-// Resume upload and processing functions - FIXED VERSION
+// ============================================================================
+// RESUME UPLOAD AND PROCESSING - PRODUCTION READY VERSION
+// ============================================================================
+// Fixes: Duplicate uploads, double initialization, race conditions
+// Author: SentientGeeks ATS Team
+// Last Updated: 2025-10-23
+// ============================================================================
+
+// ============================================================================
+// GLOBAL STATE FLAGS
+// ============================================================================
+let isUploading = false;           // Prevents concurrent uploads
+let uploaderInitialized = false;   // Prevents duplicate initialization
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
 
 /**
  * Safety function to ensure skills is always an array
+ * Handles various data formats from backend
  */
 function normalizeSkills(skills) {
     if (!skills) {
@@ -23,7 +40,14 @@ function normalizeSkills(skills) {
     return [];
 }
 
+// ============================================================================
+// FILE SELECTION HANDLER
+// ============================================================================
 
+/**
+ * Handles file selection and displays file list with validation
+ * @param {Event} event - File input change event
+ */
 function handleResumeFilesSelect(event) {
     const files = Array.from(event.target.files);
     const container = document.getElementById('selected-files-list');
@@ -40,7 +64,9 @@ function handleResumeFilesSelect(event) {
     // Check max limit
     const MAX_FILES = 500;
     if (files.length > MAX_FILES) {
-        Utils.showToast(`Too many files! Maximum ${MAX_FILES} resumes allowed per upload.`, 'error');
+        if (typeof Utils !== 'undefined' && Utils.showToast) {
+            Utils.showToast(`Too many files! Maximum ${MAX_FILES} resumes allowed per upload.`, 'error');
+        }
         event.target.value = ''; // Clear selection
         return;
     }
@@ -51,7 +77,9 @@ function handleResumeFilesSelect(event) {
     
     files.forEach(file => {
         try {
-            Utils.validateFile(file);
+            if (typeof Utils !== 'undefined' && Utils.validateFile) {
+                Utils.validateFile(file);
+            }
             validFiles.push(file);
         } catch (error) {
             invalidFiles.push({
@@ -147,75 +175,96 @@ function handleResumeFilesSelect(event) {
     }
 }
 
+// ============================================================================
+// UPLOAD HANDLER
+// ============================================================================
 
+/**
+ * Handles resume upload with duplicate prevention
+ * Uses global flag to prevent concurrent uploads
+ */
 async function uploadAndProcessResumes() {
     const fileInput = document.getElementById('resume-files');
     const uploadBtn = document.getElementById('upload-resumes-btn');
     const files = Array.from(fileInput.files);
-    
+
     if (files.length === 0) {
-        Utils.showToast('Please select at least one resume file', 'error');
+        if (typeof Utils !== 'undefined' && Utils.showToast) {
+            Utils.showToast('Please select at least one resume file', 'error');
+        }
         return;
     }
-    
-    // ✅ PREVENT DOUBLE CLICKS
-    if (uploadBtn.disabled) {
-        console.log('Upload already in progress...');
+
+    // ✅ CRITICAL: Prevent duplicate uploads - Check FIRST
+    if (isUploading) {
+        console.log("⚠️ Upload already in progress, ignoring duplicate request");
         return;
     }
-    
+
+    // ✅ Set flag IMMEDIATELY before any async operations
+    isUploading = true;
+
     try {
-        // ✅ DISABLE BUTTON IMMEDIATELY
+        // Disable button immediately to prevent clicks
         uploadBtn.disabled = true;
-        uploadBtn.textContent = 'Uploading...';
+        uploadBtn.textContent = '⏳ Uploading...';
         uploadBtn.style.opacity = '0.6';
         uploadBtn.style.cursor = 'not-allowed';
-        
-        Utils.showLoading(`Processing ${files.length} resume(s)...`);
-        
-        const formData = new FormData();
-        const sessionId = appState.getSessionId();
-        
-        if (!sessionId) {
-            throw new Error('Session ID not found');
+
+        if (typeof Utils !== 'undefined' && Utils.showLoading) {
+            Utils.showLoading(`Processing ${files.length} resumes...`);
         }
-        
-        files.forEach(file => {
-            formData.append('files', file);
-        });
-        
+
+        const formData = new FormData();
+        const sessionId = typeof appState !== 'undefined' ? appState.getSessionId() : null;
+
+        if (!sessionId) {
+            throw new Error('Session ID not found. Please process a job description first.');
+        }
+
+        files.forEach(file => formData.append('files', file));
+
         const response = await fetch(`/api/resumes/upload/${sessionId}`, {
             method: 'POST',
             body: formData
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.detail || 'Upload failed');
         }
-        
+
         const result = await response.json();
-        
         displayResumeUploadResult(result);
-        Utils.hideLoading();
         
-        let message = `Successfully processed ${result.successfully_processed} resume(s)!`;
+        if (typeof Utils !== 'undefined' && Utils.hideLoading) {
+            Utils.hideLoading();
+        }
+
+        let message = `Successfully processed ${result.successfully_processed} resumes!`;
         if (result.skipped_count > 0) {
-            message += ` (${result.skipped_count} duplicates skipped)`;
+            message += ` ${result.skipped_count} duplicates skipped`;
         }
         
-        Utils.showToast(message, 'success');
-        
-        // Clear input
+        if (typeof Utils !== 'undefined' && Utils.showToast) {
+            Utils.showToast(message, 'success');
+        }
+
+        // Clear input after successful upload
         fileInput.value = '';
-        document.getElementById('selected-files-list').innerHTML = '';
-        
+        const filesList = document.getElementById('selected-files-list');
+        if (filesList) filesList.innerHTML = '';
+
     } catch (error) {
-        console.error('Upload error:', error);
-        Utils.hideLoading();
-        Utils.showToast(`Upload failed: ${error.message}`, 'error');
+        console.error('❌ Upload error:', error);
+        
+        if (typeof Utils !== 'undefined') {
+            if (Utils.hideLoading) Utils.hideLoading();
+            if (Utils.showToast) Utils.showToast(`Upload failed: ${error.message}`, 'error');
+        }
     } finally {
-        // RE-ENABLE BUTTON
+        // ✅ ALWAYS release flag and re-enable button
+        isUploading = false;
         uploadBtn.disabled = false;
         uploadBtn.textContent = 'Upload & Process Resumes';
         uploadBtn.style.opacity = '1';
@@ -223,40 +272,68 @@ async function uploadAndProcessResumes() {
     }
 }
 
+// ============================================================================
+// RESULTS DISPLAY
+// ============================================================================
 
 /**
  * Display resume upload results with safe skills handling
  * FIXED: Safe DOM manipulation, no innerHTML errors
+ * @param {Object} result - Upload result from backend
  */
 function displayResumeUploadResult(result) {
-    // Try multiple possible containers
     let container = document.getElementById('resumes-list') 
                  || document.getElementById('results-content')
                  || document.querySelector('#resume-section .card');
     
     if (!container) {
-        console.warn('No suitable container found for resume results');
-        // Show toast notification instead
-        Utils.showToast(`${result.successfully_processed || 0} resumes uploaded successfully!`, 'success');
+        console.warn('⚠️ No suitable container found for resume results');
+        if (typeof Utils !== 'undefined' && Utils.showToast) {
+            Utils.showToast(`${result.successfully_processed || 0} resumes uploaded successfully!`, 'success');
+        }
         return;
     }
     
     let html = `
         <div class="upload-success" style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <h3 style="color: #155724; margin-bottom: 10px;">✅ Resumes Uploaded Successfully!</h3>
-            <p><strong>Total Uploaded:</strong> ${result.total_uploaded || 0}</p>
+            <h3 style="color: #155724; margin-bottom: 10px;">✅ Upload Complete!</h3>
+            <p><strong>Total Files:</strong> ${result.total_uploaded || 0}</p>
+            <p><strong>Successfully Processed:</strong> ${result.successfully_processed || 0}</p>
+            ${result.skipped_count > 0 ? `<p><strong>Duplicates Skipped:</strong> ${result.skipped_count}</p>` : ''}
+            ${result.failed_count > 0 ? `<p><strong>Failed:</strong> ${result.failed_count}</p>` : ''}
+        </div>
     `;
     
-    if (result.skipped_count && result.skipped_count > 0) {
-        html += `<p><strong>Duplicates Skipped:</strong> ${result.skipped_count}</p>`;
+    // Display skipped files prominently
+    if (result.skipped_files && result.skipped_files.length > 0) {
+        html += `
+            <div class="skipped-files" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                <h4 style="color: #856404; margin-bottom: 10px;">⚠️ Duplicate Files Skipped (${result.skipped_files.length})</h4>
+                <p style="color: #856404; font-size: 13px; margin-bottom: 10px;">These files were not uploaded because they already exist in this session:</p>
+                <ul style="color: #856404; margin: 0; padding-left: 20px;">
+        `;
+        
+        result.skipped_files.forEach(skipped => {
+            const displayName = skipped.matched_existing || skipped.filename;
+            html += `
+                <li style="margin: 5px 0;">
+                    <strong>${skipped.filename}</strong>
+                    ${skipped.matched_existing ? ` → matches existing <code>${skipped.matched_existing}</code>` : ''}
+                </li>
+            `;
+        });
+        
+        html += `
+                </ul>
+            </div>
+        `;
     }
     
-    html += `</div>`;
-    
+    // Display successfully processed resumes
     if (result.resumes && result.resumes.length > 0) {
         html += `
             <div class="resume-cards" style="margin-top: 20px;">
-                <p style="font-weight: 600; margin-bottom: 15px;"><strong>Successfully Processed:</strong> ${result.successfully_processed || result.resumes.length}</p>
+                <p style="font-weight: 600; margin-bottom: 15px;"><strong>Successfully Processed:</strong> ${result.resumes.length}</p>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
         `;
         
@@ -264,19 +341,11 @@ function displayResumeUploadResult(result) {
             const name = resume.structured_data?.name || 'Not detected';
             const experience = resume.structured_data?.total_experience || 'Not detected';
             const email = resume.structured_data?.email || 'Not detected';
-            const phone = resume.structured_data?.phone || 'Not detected';
             
-            // SAFE SKILLS HANDLING
-            let skillsPreview = 'Not detected';
-            if (resume.structured_data && resume.structured_data.skills) {
-                const skills = normalizeSkills(resume.structured_data.skills);
-                if (skills && skills.length > 0) {
-                    skillsPreview = skills.slice(0, 5).join(', ');
-                    if (skills.length > 5) {
-                        skillsPreview += ` (+${skills.length - 5} more)`;
-                    }
-                }
-            }
+            const skills = normalizeSkills(resume.structured_data?.skills);
+            const skillsPreview = skills && skills.length > 0 
+                ? skills.slice(0, 5).join(', ') + (skills.length > 5 ? ` (+${skills.length - 5} more)` : '')
+                : 'Not detected';
             
             html += `
                 <div class="resume-card" style="background: white; border: 1px solid #ddd; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -287,7 +356,6 @@ function displayResumeUploadResult(result) {
                     <div style="font-size: 13px; line-height: 1.8;">
                         <p><strong>Name:</strong> ${name}</p>
                         <p><strong>Email:</strong> ${email}</p>
-                        <p><strong>Phone:</strong> ${phone}</p>
                         <p><strong>Experience:</strong> ${experience}${experience !== 'Not detected' ? ' years' : ''}</p>
                         <p><strong>Skills:</strong> ${skillsPreview}</p>
                     </div>
@@ -301,14 +369,15 @@ function displayResumeUploadResult(result) {
         `;
     }
     
-    if (result.failed && result.failed.length > 0) {
+    // Display failed files
+    if (result.failed_files && result.failed_files.length > 0) {
         html += `
             <div class="upload-errors" style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; padding: 15px; margin-top: 20px;">
-                <h4 style="color: #721c24; margin-bottom: 10px;">❌ Failed to Process (${result.failed.length})</h4>
+                <h4 style="color: #721c24; margin-bottom: 10px;">❌ Failed to Process (${result.failed_files.length})</h4>
                 <ul style="color: #721c24; margin: 0; padding-left: 20px;">
         `;
         
-        result.failed.forEach(failed => {
+        result.failed_files.forEach(failed => {
             html += `<li>${failed.filename}: ${failed.error}</li>`;
         });
         
@@ -318,46 +387,86 @@ function displayResumeUploadResult(result) {
         `;
     }
     
-    // Safe innerHTML assignment
     try {
         container.innerHTML = html;
         console.log('✅ Resume results displayed successfully');
     } catch (e) {
         console.error('❌ Error displaying results:', e);
-        Utils.showToast('Results processed but display error occurred', 'warning');
+        if (typeof Utils !== 'undefined' && Utils.showToast) {
+            Utils.showToast('Results processed but display error occurred', 'warning');
+        }
     }
 }
 
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
 
 /**
  * Initialize event listeners when DOM is ready
+ * Includes guard to prevent duplicate initialization
  */
 function initResumeUploader() {
+    // ✅ CRITICAL: Prevent duplicate initialization
+    if (uploaderInitialized) {
+        console.warn('⚠️ Resume uploader already initialized, skipping...');
+        return;
+    }
+
     const fileInput = document.getElementById('resume-files');
     const uploadBtn = document.getElementById('upload-resumes-btn');
-    
+    const selectBtn = document.getElementById('select-resume-files-btn');
+
     if (fileInput) {
         fileInput.addEventListener('change', handleResumeFilesSelect);
         console.log('✅ Resume file input listener attached');
     } else {
         console.warn('⚠️ Resume file input not found');
     }
-    
+
     if (uploadBtn) {
-        uploadBtn.addEventListener('click', uploadAndProcessResumes);
+        // ✅ Remove any inline onclick to prevent duplicate events
+        uploadBtn.removeAttribute('onclick');
+        
+        // ✅ Attach single event listener with proper async handling
+        uploadBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            await uploadAndProcessResumes();
+        });
+        
         console.log('✅ Resume upload button listener attached');
     } else {
         console.warn('⚠️ Resume upload button not found');
     }
+
+    // ✅ NEW: Handle the "Select Resume Files" button
+    if (selectBtn && fileInput) {
+        selectBtn.addEventListener('click', function() {
+            fileInput.click();
+        });
+        console.log('✅ Resume file selection button listener attached');
+    }
+
+    // ✅ Mark as initialized to prevent duplicate setup
+    uploaderInitialized = true;
+    console.log('✅ Resume uploader fully initialized');
 }
 
+// ============================================================================
+// DOM READY EVENT - SINGLE INITIALIZATION
+// ============================================================================
 
-// Event listeners
-document.addEventListener('DOMContentLoaded', initResumeUploader);
-
-// Also initialize if DOM is already loaded
+/**
+ * Initialize only once when DOM is ready
+ * Handles both pre-loaded and still-loading DOM states
+ */
 if (document.readyState === 'loading') {
+    // DOM hasn't loaded yet, wait for DOMContentLoaded
     document.addEventListener('DOMContentLoaded', initResumeUploader);
 } else {
+    // DOM already loaded (script is defer or at end of body)
     initResumeUploader();
 }
+
+console.log('📄 resume-uploader.js loaded successfully');
