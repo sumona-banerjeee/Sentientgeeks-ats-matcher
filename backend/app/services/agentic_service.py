@@ -2,44 +2,44 @@ import os
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, Process, LLM
+from backend.app.config import settings
 import json
 import re
+import asyncio
 
 load_dotenv()
 
 class EnhancedAgenticATSService:
-    
     def __init__(self):
-        # Choosing the LLM backend
+        # Determine which LLM backend to use
         self.use_groq = os.getenv("USE_GROQ", "true").lower() == "true"
-    
-        # Check if Perplexity should be used
         use_perplexity = os.getenv("USE_PERPLEXITY", "true").lower() == "true"
 
         if use_perplexity:
             self.llm = LLM(
-                model="perplexity/sonar-pro",
+                model=f"perplexity/{settings.PERPLEXITY_MODEL}",  
                 api_key=os.getenv("PERPLEXITY_API_KEY"),
                 base_url="https://api.perplexity.ai",
                 temperature=0.1
             )
-            print("✅ Using Perplexity AI with Sonar Pro (Web-grounded & Reliable!)")
+            print(f"✅ Using Perplexity: {settings.PERPLEXITY_MODEL}")
 
         elif self.use_groq:
             self.llm = LLM(
-                model="groq/llama-3.3-70b-versatile",
+                model=f"groq/{settings.GROQ_MODEL}", 
                 api_key=os.getenv("GROQ_API_KEY"),
                 temperature=0.1
             )
-            print("✅ Using Groq AI with Llama 3.3 70B (Fast & Free!)")
+            print(f"✅ Using Groq: {settings.GROQ_MODEL}")
 
         else:
             self.llm = LLM(
-                model="gpt-4-turbo-preview",
+                model=f"{settings.OPENAI_MODEL}",  
                 api_key=os.getenv("OPENAI_API_KEY"),
                 temperature=0.1
             )
-            print("✅ Using OpenAI GPT-4")
+            print(f"✅ Using OpenAI: {settings.OPENAI_MODEL}")
+
 
         # Initialize specialized agents
         self.resume_analyzer = self._create_resume_analyzer()

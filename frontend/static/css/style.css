@@ -378,3 +378,59 @@ textarea:focus {
         padding: 0.5rem;
     }
 }
+
+
+
+/* ============================================
+   RESPONSIVE USER INFO
+   ============================================ */
+
+@media (min-width: 1024px) {
+    .user-name-display {
+        display: inline-block !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .header-right {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+    
+    #user-info-header > div {
+        gap: 8px !important;
+    }
+    
+    #user-info-header button,
+    #user-info-header a {
+        padding: 6px 14px !important;
+        font-size: 12px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-container {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .header-left {
+        text-align: center;
+        width: 100%;
+    }
+    
+    .header-right {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .nav-home-btn {
+        padding: 8px 14px !important;
+    }
+    
+    #user-info-header > div {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}

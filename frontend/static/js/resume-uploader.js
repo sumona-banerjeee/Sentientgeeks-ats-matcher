@@ -1,25 +1,8 @@
-// ============================================================================
-// RESUME UPLOAD AND PROCESSING - PRODUCTION READY VERSION
-// ============================================================================
-// Fixes: Duplicate uploads, double initialization, race conditions
-// Author: SentientGeeks ATS Team
-// Last Updated: 2025-10-23
-// ============================================================================
 
-// ============================================================================
-// GLOBAL STATE FLAGS
-// ============================================================================
 let isUploading = false;           // Prevents concurrent uploads
 let uploaderInitialized = false;   // Prevents duplicate initialization
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
 
-/**
- * Safety function to ensure skills is always an array
- * Handles various data formats from backend
- */
 function normalizeSkills(skills) {
     if (!skills) {
         return [];
@@ -255,6 +238,21 @@ async function uploadAndProcessResumes() {
         const filesList = document.getElementById('selected-files-list');
         if (filesList) filesList.innerHTML = '';
 
+        // 🔥 FIX: Navigate to Step 5 (Matching Results) after successful upload
+        if (result.successfully_processed > 0) {
+            console.log('✅ Upload complete, navigating to matching step...');
+            
+            // Wait 1.5 seconds to let user see the success message
+            setTimeout(() => {
+                if (typeof appState !== 'undefined' && appState.nextStep) {
+                    appState.nextStep();
+                    console.log('📍 Moved to Step 5: ATS Matching Results');
+                } else {
+                    console.error('❌ appState not available for navigation');
+                }
+            }, 1500);
+        }
+
     } catch (error) {
         console.error('❌ Upload error:', error);
         
@@ -271,6 +269,7 @@ async function uploadAndProcessResumes() {
         uploadBtn.style.cursor = 'pointer';
     }
 }
+
 
 // ============================================================================
 // RESULTS DISPLAY
@@ -407,51 +406,40 @@ function displayResumeUploadResult(result) {
  * Includes guard to prevent duplicate initialization
  */
 function initResumeUploader() {
-    // ✅ CRITICAL: Prevent duplicate initialization
+    // 🔥 FIX: Prevent duplicate initialization
     if (uploaderInitialized) {
-        console.warn('⚠️ Resume uploader already initialized, skipping...');
+        console.log('⚠️ Resume uploader already initialized, skipping...');
         return;
     }
 
-    const fileInput = document.getElementById('resume-files');
+    console.log('🎬 Initializing Resume Uploader...');
+    
     const uploadBtn = document.getElementById('upload-resumes-btn');
-    const selectBtn = document.getElementById('select-resume-files-btn');
-
-    if (fileInput) {
-        fileInput.addEventListener('change', handleResumeFilesSelect);
-        console.log('✅ Resume file input listener attached');
-    } else {
-        console.warn('⚠️ Resume file input not found');
+    const fileInput = document.getElementById('resume-files');
+    
+    if (!uploadBtn || !fileInput) {
+        console.error('Required elements not found');
+        return;
     }
 
-    if (uploadBtn) {
-        // ✅ Remove any inline onclick to prevent duplicate events
-        uploadBtn.removeAttribute('onclick');
-        
-        // ✅ Attach single event listener with proper async handling
-        uploadBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            await uploadAndProcessResumes();
-        });
-        
-        console.log('✅ Resume upload button listener attached');
-    } else {
-        console.warn('⚠️ Resume upload button not found');
-    }
+    // 🔥 FIX: Remove any existing listeners before adding new one
+    const newUploadBtn = uploadBtn.cloneNode(true);
+    uploadBtn.parentNode.replaceChild(newUploadBtn, uploadBtn);
+    
+    // Now attach the event listener to the fresh button
+    newUploadBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation(); // Prevent event bubbling
+        await uploadAndProcessResumes();
+    });
 
-    // ✅ NEW: Handle the "Select Resume Files" button
-    if (selectBtn && fileInput) {
-        selectBtn.addEventListener('click', function() {
-            fileInput.click();
-        });
-        console.log('✅ Resume file selection button listener attached');
-    }
+    // File selection handler
+    fileInput.addEventListener('change', handleResumeFilesSelect);
 
-    // ✅ Mark as initialized to prevent duplicate setup
     uploaderInitialized = true;
-    console.log('✅ Resume uploader fully initialized');
+    console.log('✅ Resume uploader initialized');
 }
+
 
 // ============================================================================
 // DOM READY EVENT - SINGLE INITIALIZATION

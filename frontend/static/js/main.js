@@ -1,4 +1,6 @@
-// Global state management
+// ============================================================================
+// GLOBAL STATE MANAGEMENT
+// ============================================================================
 class AppState {
     constructor() {
         this.sessionId = null;
@@ -25,6 +27,7 @@ class AppState {
         this.updateUI();
     }
     
+    // 🔥 UPDATED: Added home button visibility update
     updateUI() {
         // Hide all sections
         document.querySelectorAll('.section').forEach(section => {
@@ -36,6 +39,11 @@ class AppState {
         if (currentSection) {
             currentSection.classList.add('active');
         }
+        
+        // 🔥 NEW: Update home button visibility (for routing.js integration)
+        if (typeof appRouter !== 'undefined' && appRouter.updateHomeButtonVisibility) {
+            appRouter.updateHomeButtonVisibility();
+        }
     }
     
     getSectionId() {
@@ -44,7 +52,11 @@ class AppState {
     }
 }
 
-// Utility functions
+
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
 class Utils {
     static showLoading(message = 'Processing...') {
         const overlay = document.getElementById('loading-overlay');
@@ -133,30 +145,48 @@ class Utils {
     }
 }
 
-// Initialize app
+
+
+// ============================================================================
+// INITIALIZE APP STATE (GLOBAL)
+// ============================================================================
 const appState = new AppState();
 
-// DOM ready
+
+
+// ============================================================================
+// DOM READY - INITIALIZE APPLICATION
+// ============================================================================
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
 });
 
+
+
+// 🔥 UPDATED: Let routing.js handle state restoration
 function initializeApp() {
     // Check if there's an existing session
     const existingSessionId = appState.getSessionId();
+    
     if (existingSessionId) {
-        Utils.showToast('Previous session found. Starting fresh.', 'info');
-        localStorage.removeItem('ats_session_id');
-        appState.sessionId = null;
+        console.log('📦 Existing session found:', existingSessionId);
+        // Note: routing.js will restore state if it was a completed Step 5 session
     }
     
     // Initialize event listeners
     initializeEventListeners();
     
-    // Show first step
+    // Show first step (will be overridden by routing.js if state is restored)
     appState.updateUI();
+    
+    console.log('✅ App initialized successfully');
 }
 
+
+
+// ============================================================================
+// EVENT LISTENERS INITIALIZATION
+// ============================================================================
 function initializeEventListeners() {
     // JD file input
     const jdFileInput = document.getElementById('jd-file');
@@ -199,11 +229,6 @@ function initializeEventListeners() {
         resumeFilesInput.addEventListener('change', handleResumeFilesSelect);
     }
     
-    // Upload resumes button
-    const uploadResumesBtn = document.getElementById('upload-resumes-btn');
-    if (uploadResumesBtn) {
-        uploadResumesBtn.addEventListener('click', uploadResumes);
-    }
     
     // Start matching button
     const startMatchingBtn = document.getElementById('start-matching-btn');
@@ -212,6 +237,11 @@ function initializeEventListeners() {
     }
 }
 
+
+
+// ============================================================================
+// JD UPLOAD HANDLERS
+// ============================================================================
 function handleJDFileSelect(event) {
     const file = event.target.files[0];
     if (file) {
@@ -228,6 +258,8 @@ function handleJDFileSelect(event) {
     }
 }
 
+
+
 function handleJDTextInput(event) {
     if (event.target.value.trim()) {
         const fileInput = document.getElementById('jd-file');
@@ -235,6 +267,8 @@ function handleJDTextInput(event) {
     }
     updateProcessJDButton();
 }
+
+
 
 function updateProcessJDButton() {
     const fileInput = document.getElementById('jd-file');
@@ -249,8 +283,11 @@ function updateProcessJDButton() {
     processBtn.disabled = !(hasFile || hasText);
 }
 
-// FIXED: Proper async function for processing job description
-// FIXED: Proper async function for processing job description
+
+
+// ============================================================================
+// PROCESS JOB DESCRIPTION
+// ============================================================================
 async function processJobDescription() {
     const fileInput = document.getElementById('jd-file');
     const textInput = document.getElementById('jd-text');
@@ -275,15 +312,9 @@ async function processJobDescription() {
             throw new Error('Please provide either a JD file or text');
         }
         
-        // FIXED: Use proper server URL with protocol and port
-        const serverUrl = 'http://localhost:8000'; // or your actual server URL
-        const response = await fetch(`${serverUrl}/api/jd/upload`, {
+        const response = await fetch('/api/jd/upload', {
             method: 'POST',
-            body: formData,
-            // Remove Content-Type header - let browser set it for FormData
-            headers: {
-                // Don't set Content-Type for FormData - browser will set multipart/form-data
-            }
+            body: formData
         });
         
         console.log('Response status:', response.status);
@@ -317,9 +348,8 @@ async function processJobDescription() {
     } catch (error) {
         console.error('Error processing JD:', error);
         
-        // Better error handling
         if (error.message.includes('Failed to fetch')) {
-            Utils.showToast('Cannot connect to server. Is the backend running on port 8000?', 'error');
+            Utils.showToast('Cannot connect to server. Is the backend running?', 'error');
         } else if (error.message.includes('404')) {
             Utils.showToast('Upload endpoint not found. Check your backend API routes.', 'error');
         } else {
@@ -331,6 +361,10 @@ async function processJobDescription() {
 }
 
 
+
+// ============================================================================
+// DISPLAY STRUCTURED JD
+// ============================================================================
 function displayStructuredJD(structuredData) {
     const container = document.getElementById('structured-jd-display');
     if (!container) {
@@ -402,7 +436,11 @@ function displayStructuredJD(structuredData) {
     container.innerHTML = html;
 }
 
-// PLACEHOLDER FUNCTIONS - Add these if missing
+
+
+// ============================================================================
+// STRUCTURE APPROVAL
+// ============================================================================
 async function approveStructure() {
     if (!appState.getSessionId()) {
         Utils.showToast('No active session found', 'error');
@@ -429,6 +467,8 @@ async function approveStructure() {
     }
 }
 
+
+
 async function requestStructureChanges() {
     const feedback = prompt('Please provide feedback for structure changes:');
     if (!feedback) return;
@@ -453,6 +493,11 @@ async function requestStructureChanges() {
     }
 }
 
+
+
+// ============================================================================
+// SKILLS WEIGHTAGE
+// ============================================================================
 async function setSkillsWeightage() {
     // This would typically involve collecting skill weights from a form
     // For now, setting default weights
@@ -482,54 +527,38 @@ async function setSkillsWeightage() {
     }
 }
 
+
+
+// ============================================================================
+// RESUME UPLOAD
+// ============================================================================
 function handleResumeFilesSelect(event) {
     const files = event.target.files;
-    Utils.showToast(`${files.length} resume(s) selected`, 'success');
-}
-
-async function uploadResumes() {
-    const fileInput = document.getElementById('resume-files');
-    if (!fileInput || !fileInput.files.length) {
-        Utils.showToast('Please select resume files first', 'warning');
-        return;
-    }
-    
-    try {
-        Utils.showLoading('Uploading resumes...');
+    if (files && files.length > 0) {
+        Utils.showToast(`${files.length} resume(s) selected`, 'success');
         
-        const formData = new FormData();
-        for (let i = 0; i < fileInput.files.length; i++) {
-            formData.append('files', fileInput.files[i]);
+        // Enable upload button
+        const uploadBtn = document.getElementById('upload-resumes-btn');
+        if (uploadBtn) {
+            uploadBtn.disabled = false;
         }
-        
-        const response = await fetch(`/api/resumes/upload/${appState.getSessionId()}`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-        }
-        
-        const result = await response.json();
-        appState.nextStep();
-        Utils.showToast(`${result.successfully_processed} resumes uploaded successfully!`, 'success');
-        
-    } catch (error) {
-        Utils.showToast(`Error uploading resumes: ${error.message}`, 'error');
-    } finally {
-        Utils.hideLoading();
     }
 }
 
-// Add navigation helper function
+
+
+
+// ============================================================================
+// MATCHING
+// ============================================================================
 function goToResumeUpload() {
     appState.currentStep = 4;
     appState.updateUI();
     Utils.showToast('Please upload resumes before matching', 'info');
 }
 
-// Update the Start Matching button to check for resumes first
+
+
 async function startMatching() {
     try {
         // First check if resumes exist
@@ -550,6 +579,12 @@ async function startMatching() {
         appState.matchingResults = response.ranking;
         await displayMatchingResults();
         
+        // ✅ NEW: Explicitly save state after Step 5 completion
+        if (typeof appRouter !== 'undefined' && appRouter.saveState) {
+            appRouter.saveState();
+            console.log('💾 State saved after Step 5 completion');
+        }
+        
         Utils.showToast(`Matching completed! Ranked ${response.successfully_matched} resumes.`, 'success');
         
     } catch (error) {
@@ -565,8 +600,26 @@ async function startMatching() {
     }
 }
 
+
+
 async function displayMatchingResults() {
     // Placeholder for displaying matching results
+    // Your matcher.js file will handle the actual display
     console.log('Displaying matching results:', appState.matchingResults);
     appState.nextStep();
+    
+    // If you have displayMatchingResults function in matcher.js, call it here
+    if (typeof window.displayMatchingResults === 'function') {
+        await window.displayMatchingResults();
+    }
 }
+
+
+
+// ============================================================================
+// MAKE FUNCTIONS GLOBALLY AVAILABLE
+// ============================================================================
+window.appState = appState;
+window.Utils = Utils;
+window.displayStructuredJD = displayStructuredJD;
+window.goToResumeUpload = goToResumeUpload;

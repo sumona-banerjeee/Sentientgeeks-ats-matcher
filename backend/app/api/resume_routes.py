@@ -10,12 +10,12 @@ from ..services.pdf_processor import PDFProcessor
 from ..services.llm_service import LLMService
 
 
-router = APIRouter(prefix="/api/resumes", tags=["Resumes"])
+resume_router = APIRouter()
 
 
 MAX_RESUMES_PER_UPLOAD = 500
 
-@router.post("/upload/{session_id}")
+@resume_router.post("/upload/{session_id}")
 async def upload_resumes(
     session_id: str,
     files: List[UploadFile] = File(...),
@@ -221,7 +221,7 @@ async def upload_resumes(
     }
 
 
-@router.get("/session/{session_id}")
+@resume_router.get("/session/{session_id}")
 async def get_resumes_by_session(session_id: str, db: Session = Depends(get_db)):
     """Get all resumes for a session"""
     
