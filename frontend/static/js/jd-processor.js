@@ -4,29 +4,52 @@ async function approveStructure() {
     try {
         Utils.showLoading('Approving structure...');
         
-        // Get current session data first
-        const sessionResponse = await Utils.makeRequest(`/api/jd/session/${appState.getSessionId()}`);
-        const currentStructure = sessionResponse.structuring_session?.current_structure;
-        
-        console.log('Current structure before approval:', currentStructure);
-        
-        const response = await Utils.makeRequest(`/api/jd/approve-structure/${appState.getSessionId()}`, {
-            method: 'POST',
-            body: {
-                approved: true
-            }
-        });
-        
-        if (response.ready_for_skills_weightage) {
-            // Store the approved structure
-            appState.jdData = response;
+        // Check if this is a library JD that hasn't been saved to session yet
+        if (appState.jdData && appState.jdData.isFromLibrary) {
+            // For library JDs, skip the upload step and directly approve
+            const sessionId = appState.getSessionId();
             
-            // Generate skills weightage form with the current structure
-            await generateSkillsWeightageForm(currentStructure);
-            appState.nextStep();
-            Utils.showToast('Structure approved! Please set skills weightage.', 'success');
+            // Directly approve with the structured data from library
+            const response = await Utils.makeRequest(`/api/jd/approve-structure/${sessionId}`, {
+                method: 'POST',
+                body: {
+                    approved: true,
+                    structured_data: appState.jdData.structured_data
+                }
+            });
+            
+            if (response.ready_for_skills_weightage || response.status === 'approved') {
+                // Generate skills weightage form with pre-configured weights
+                await generateSkillsWeightageForm(
+                    appState.jdData.structured_data,
+                    appState.jdData.skills_weightage
+                );
+                
+                // Remove the library flag
+                delete appState.jdData.isFromLibrary;
+                
+                // Move to Step 3
+                appState.nextStep();
+                Utils.showToast('Structure approved! Please set skills weightage.', 'success');
+            }
+        } else {
+            // Normal JD approval flow (not from library)
+            const sessionResponse = await Utils.makeRequest(`/api/jd/session/${appState.getSessionId()}`);
+            const currentStructure = sessionResponse.structuring_session?.current_structure;
+            console.log('Current structure before approval:', currentStructure);
+            
+            const response = await Utils.makeRequest(`/api/jd/approve-structure/${appState.getSessionId()}`, {
+                method: 'POST',
+                body: { approved: true }
+            });
+            
+            if (response.ready_for_skills_weightage) {
+                appState.jdData = response;
+                await generateSkillsWeightageForm(currentStructure);
+                appState.nextStep();
+                Utils.showToast('Structure approved! Please set skills weightage.', 'success');
+            }
         }
-        
     } catch (error) {
         console.error('Error approving structure:', error);
         Utils.showToast(error.message, 'error');
@@ -34,6 +57,7 @@ async function approveStructure() {
         Utils.hideLoading();
     }
 }
+
 
 async function requestStructureChanges() {
     const feedback = document.getElementById('structure-feedback').value.trim();

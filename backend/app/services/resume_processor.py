@@ -5,6 +5,7 @@ from datetime import datetime
 import io
 import traceback
 
+
 class ResumeProcessor:
     def __init__(self):
         self.experience_indicators = [
@@ -106,6 +107,144 @@ class ResumeProcessor:
             print(f"Error extracting PDF text: {e}")
             traceback.print_exc()
             return ""
+    
+    def extract_education_details(self, text: str) -> List[str]:
+        """
+        Extract education information with enhanced parsing
+        
+        Args:
+            text: Resume text
+            
+        Returns:
+            List of education entries
+        """
+        education = []
+        text_lower = text.lower()
+        
+        # Degree patterns with field of study
+        degree_patterns = [
+            r'(bachelor(?:\'s)?|b\.?tech|b\.?e\.?|b\.?sc|ba|bs)\s+(?:of|in|degree)?\s*([a-z\s]+)',
+            r'(master(?:\'s)?|m\.?tech|m\.?e\.?|m\.?sc|ma|ms|mba)\s+(?:of|in|degree)?\s*([a-z\s]+)',
+            r'(phd|ph\.d\.|doctorate|doctor)\s+(?:of|in)?\s*([a-z\s]+)',
+            r'(diploma|associate)\s+(?:in)?\s*([a-z\s]+)'
+        ]
+        
+        # Extract degree + field combinations
+        for pattern in degree_patterns:
+            matches = re.findall(pattern, text_lower, re.IGNORECASE)
+            for match in matches:
+                if isinstance(match, tuple) and len(match) >= 2:
+                    degree = match[0].strip().title()
+                    field = match[1].strip().title()
+                    # Clean up field (remove extra words)
+                    field_words = field.split()[:5]  # Take first 5 words max
+                    field_clean = ' '.join(field_words)
+                    
+                    if field_clean and len(field_clean) > 2:
+                        edu_entry = f"{degree} in {field_clean}"
+                        if edu_entry not in education:
+                            education.append(edu_entry)
+        
+        # Extract from education section if no patterns matched
+        if not education:
+            edu_section_pattern = r'education.*?(?:experience|skills|certifications|projects|achievements|$)'
+            edu_match = re.search(edu_section_pattern, text_lower, re.DOTALL)
+            
+            if edu_match:
+                edu_text = edu_match.group()
+                lines = [line.strip() for line in edu_text.split('\n') if line.strip()]
+                
+                # Filter out section headers and extract meaningful lines
+                for line in lines[:8]:  # Check first 8 lines of education section
+                    line_clean = line.strip()
+                    # Skip section headers and very short lines
+                    if len(line_clean) > 10 and len(line_clean) < 150:
+                        # Skip if it's just a year or location
+                        if not re.match(r'^\d{4}(-\d{4})?$', line_clean):
+                            if not any(skip in line_clean.lower() for skip in ['education', 'degree', 'university', 'college', 'institute']):
+                                if any(c.isalpha() for c in line_clean):
+                                    education.append(line_clean.title())
+        
+        # If still no education found, look for university/college names
+        if not education:
+            university_patterns = [
+                r'([A-Z][a-zA-Z\s]+(?:University|College|Institute)[a-zA-Z\s]*)',
+            ]
+            
+            for pattern in university_patterns:
+                matches = re.findall(pattern, text)
+                for match in matches[:3]:  # Limit to 3 universities
+                    if isinstance(match, str) and len(match) > 10:
+                        education.append(match.strip())
+        
+        return education if education else ["No education information available"]
+    
+    def extract_certifications_details(self, text: str) -> List[str]:
+        """
+        Extract certifications with enhanced parsing
+        
+        Args:
+            text: Resume text
+            
+        Returns:
+            List of certification entries
+        """
+        certifications = []
+        text_lower = text.lower()
+        
+        # Common certification keywords
+        cert_keywords = [
+            'certified', 'certification', 'certificate',
+            'aws certified', 'azure certified', 'google cloud',
+            'pmp', 'prince2', 'itil', 'cissp', 'ceh',
+            'scrum master', 'comptia', 'cisco', 'oracle certified',
+            'ccna', 'mcsa', 'mcse', 'rhce', 'cka', 'ckad'
+        ]
+        
+        # Look for certification section
+        cert_section_pattern = r'certifications?.*?(?:education|experience|skills|projects|achievements|languages|$)'
+        cert_match = re.search(cert_section_pattern, text_lower, re.DOTALL)
+        
+        if cert_match:
+            cert_text = cert_match.group()
+            lines = [line.strip() for line in cert_text.split('\n') if line.strip()]
+            
+            for line in lines:
+                line_clean = line.strip()
+                # Check if line contains certification keywords
+                if any(keyword in line_clean.lower() for keyword in cert_keywords):
+                    if 5 < len(line_clean) < 150:
+                        # Skip section headers
+                        if not re.match(r'^certifications?:?$', line_clean.lower()):
+                            if line_clean not in certifications:
+                                certifications.append(line_clean.title())
+        
+        # Also check for specific certification patterns anywhere in full text
+        specific_patterns = [
+            r'(aws\s+certified\s+[a-z\s\-]+(?:associate|professional|specialty)?)',
+            r'(microsoft\s+certified\s+[a-z\s\-]+)',
+            r'(google\s+cloud\s+[a-z\s\-]+(?:engineer|architect)?)',
+            r'(oracle\s+certified\s+[a-z\s\-]+)',
+            r'(cisco\s+certified\s+[a-z\s\-]+)',
+            r'(comptia\s+[a-z+]+)',
+            r'(certified\s+kubernetes\s+[a-z\s]+)',
+            r'(pmp|prince2|itil|cissp|ceh|ccna|ccnp|mcsa|mcse|rhce|cka|ckad)\s*(?:certified)?',
+        ]
+        
+        for pattern in specific_patterns:
+            matches = re.findall(pattern, text_lower, re.IGNORECASE)
+            for match in matches:
+                cert = match if isinstance(match, str) else match[0]
+                cert_clean = cert.strip().title()
+                
+                # Avoid duplicates
+                if cert_clean and cert_clean not in certifications and len(cert_clean) > 3:
+                    certifications.append(cert_clean)
+        
+        # Limit to top 10 certifications to avoid noise
+        certifications = certifications[:10]
+        
+        return certifications if certifications else ["No certifications available"]
     
     def parse_experience_timeline(self, text: str) -> List[Dict]:
         """
@@ -306,29 +445,31 @@ class ResumeProcessor:
     def enhance_resume_data(self, raw_resume_data: dict) -> dict:
         """
         Post-process and enhance resume data
-        
+    
         Args:
             raw_resume_data: Raw resume data from processing
-            
+        
         Returns:
-            Enhanced resume data
+            Enhanced resume data with guaranteed skills array
         """
         enhanced_data = raw_resume_data.copy()
-        
+    
         # Ensure experience timeline exists and is properly formatted
         if 'experience_timeline' not in enhanced_data:
             enhanced_data['experience_timeline'] = []
-        
+    
         # Calculate total experience if not provided
         if 'total_experience' not in enhanced_data or not enhanced_data['total_experience']:
             enhanced_data['total_experience'] = self.calculate_total_experience(
                 enhanced_data['experience_timeline']
             )
-        
-        # Enhance skills list
+    
+        # ✅ ENSURE SKILLS IS ALWAYS AN ARRAY - NORMALIZE FIRST
         if 'skills' in enhanced_data:
+            # Normalize skills to array format (handles string, dict, list, etc.)
+            enhanced_data['skills'] = self.normalize_skills_to_array(enhanced_data['skills'])
             enhanced_skills = set(enhanced_data['skills'])
-            
+        
             # Extract additional skills from experience descriptions
             for exp in enhanced_data.get('experience_timeline', []):
                 exp_text = ' '.join([
@@ -338,10 +479,80 @@ class ResumeProcessor:
                 ])
                 additional_skills = self.extract_skills_from_text(exp_text)
                 enhanced_skills.update(additional_skills)
-            
-            enhanced_data['skills'] = list(enhanced_skills)
         
+            # Convert back to list and ensure it's an array
+            enhanced_data['skills'] = list(enhanced_skills)
+        else:
+            # If no skills key exists, ensure empty array
+            enhanced_data['skills'] = []
+    
+        # ✅ FINAL VALIDATION: Ensure skills is a list
+        if not isinstance(enhanced_data['skills'], list):
+            enhanced_data['skills'] = self.normalize_skills_to_array(enhanced_data['skills'])
+        
+        # ✅ ENSURE EDUCATION IS PRESENT
+        if 'education' not in enhanced_data or not enhanced_data['education']:
+            # Extract education from original text if available
+            original_text = raw_resume_data.get('original_text', '')
+            if original_text:
+                enhanced_data['education'] = self.extract_education_details(original_text)
+            else:
+                enhanced_data['education'] = ["No education information available"]
+        
+        # ✅ ENSURE CERTIFICATIONS IS PRESENT
+        if 'certifications' not in enhanced_data or not enhanced_data['certifications']:
+            # Extract certifications from original text if available
+            original_text = raw_resume_data.get('original_text', '')
+            if original_text:
+                enhanced_data['certifications'] = self.extract_certifications_details(original_text)
+            else:
+                enhanced_data['certifications'] = ["No certifications available"]
+    
         return enhanced_data
+    
+    def normalize_skills_to_array(self, skills) -> List[str]:
+        """
+        Ensure skills is always returned as a list/array
+        Handles all possible input types: string, list, dict, None, etc.
+    
+        Args:
+            skills: Skills in any format
+        
+        Returns:
+            List of skill strings
+        """
+        # Handle None/empty
+        if not skills:
+            return []
+    
+        # Already a list - just clean it
+        if isinstance(skills, list):
+            return [str(skill).strip() for skill in skills if skill and str(skill).strip()]
+    
+        # Handle dictionary format (e.g., {0: "Python", 1: "Java"})
+        if isinstance(skills, dict):
+            return [str(v).strip() for v in skills.values() if v and str(v).strip()]
+    
+        # Handle string format
+        if isinstance(skills, str):
+            # Try splitting by comma first
+            skill_list = [s.strip() for s in skills.split(',') if s.strip()]
+        
+            # If no commas found, try other delimiters
+            if len(skill_list) == 1:
+                for delimiter in ['|', ';', '/', '\n', '•', '-']:
+                    if delimiter in skills:
+                        skill_list = [s.strip() for s in skills.split(delimiter) if s.strip()]
+                        break
+        
+            return skill_list
+    
+        # For any other type, try to convert to string and return as single-item list
+        try:
+            skill_str = str(skills).strip()
+            return [skill_str] if skill_str else []
+        except:
+            return []
     
     # Helper methods
     def _is_experience_section_header(self, line: str) -> bool:
@@ -550,7 +761,7 @@ class ResumeProcessor:
         
         return experience
 
-# Utility function for easy import
-def create_resume_processor() -> ResumeProcessor:
+
+def create_resume_processor() -> 'ResumeProcessor':
     """Create and return a ResumeProcessor instance"""
     return ResumeProcessor()

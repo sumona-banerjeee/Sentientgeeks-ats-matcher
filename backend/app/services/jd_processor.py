@@ -61,31 +61,23 @@ class JDProcessor:
         ]
     
     def validate_jd_structure(self, jd_data: dict) -> Tuple[bool, List[str]]:
-        """
-        Validate JD has required fields for proper matching
-        
-        Args:
-            jd_data: Dictionary containing JD data
-            
-        Returns:
-            Tuple of (is_valid, list_of_missing_fields)
-        """
+    
         missing_fields = []
         warnings = []
         
-        # Check essential fields
+        # Checking essential fields
         for field in self.required_fields:
             if not jd_data.get(field):
                 missing_fields.append(field)
         
-        # Check if skills lists are empty
+        # Checking if skills lists are empty
         primary_skills = jd_data.get('primary_skills', [])
         secondary_skills = jd_data.get('secondary_skills', [])
         
         if not primary_skills and not secondary_skills:
             missing_fields.append('skills (primary or secondary)')
         
-        # Check experience requirement format
+        # Checking experience requirement format
         exp_req = jd_data.get('experience_required')
         if exp_req and not self._is_valid_experience_format(exp_req):
             warnings.append('experience_required format might be unclear')
@@ -93,25 +85,17 @@ class JDProcessor:
         is_valid = len(missing_fields) == 0
         
         if warnings:
-            print(f"⚠️ JD Validation Warnings: {warnings}")
+            print(f"JD Validation Warnings: {warnings}")
         
         return is_valid, missing_fields
     
     def standardize_skills(self, skills: List[str]) -> List[str]:
-        """
-        Standardize skill names for consistent matching
         
-        Args:
-            skills: List of skill names (possibly with variations)
-            
-        Returns:
-            List of standardized skill names
-        """
         if not skills:
             return []
         
         standardized = []
-        processed_canonicals = set()  # Track canonical forms we've added
+        processed_canonicals = set()
         
         for skill in skills:
             if not skill or not isinstance(skill, str):
@@ -121,10 +105,10 @@ class JDProcessor:
             if not clean_skill:
                 continue
             
-            # Find canonical form
+            # Finding canonical form
             canonical = self._find_canonical_skill(clean_skill)
             
-            # Add if we haven't seen this canonical form yet
+            # Adding if we haven't seen this canonical form yet
             if canonical and canonical not in processed_canonicals:
                 standardized.append(canonical)
                 processed_canonicals.add(canonical)
@@ -132,15 +116,7 @@ class JDProcessor:
         return standardized
     
     def extract_experience_requirement(self, jd_text: str) -> float:
-        """
-        Extract numeric experience requirement from JD text
         
-        Args:
-            jd_text: Raw job description text
-            
-        Returns:
-            Years of experience required (0.0 if not found)
-        """
         if not jd_text or not isinstance(jd_text, str):
             return 0.0
         
@@ -150,7 +126,7 @@ class JDProcessor:
             matches = re.findall(pattern, jd_lower)
             if matches:
                 if isinstance(matches[0], tuple):
-                    # Range like "2-5 years" - take minimum
+                    # Range like "2-5 years" take minimum
                     try:
                         return float(matches[0][0])
                     except (ValueError, IndexError):
@@ -165,18 +141,10 @@ class JDProcessor:
         return 0.0
     
     def enhance_jd_data(self, raw_jd_data: dict) -> dict:
-        """
-        Post-process and enhance JD data from LLM
         
-        Args:
-            raw_jd_data: Raw JD data from LLM processing
-            
-        Returns:
-            Enhanced and validated JD data
-        """
         enhanced_data = raw_jd_data.copy()
         
-        # Standardize skills
+        # Standardizing different skills based on primary and secondary
         if 'primary_skills' in enhanced_data:
             enhanced_data['primary_skills'] = self.standardize_skills(
                 enhanced_data['primary_skills']
@@ -187,44 +155,36 @@ class JDProcessor:
                 enhanced_data['secondary_skills']
             )
         
-        # Ensure experience requirement is numeric
+        # Ensuring experience requirement is numeric
         if 'experience_required' in enhanced_data:
             exp_req = enhanced_data['experience_required']
             if isinstance(exp_req, str):
                 numeric_exp = self.extract_experience_requirement(exp_req)
                 enhanced_data['experience_required'] = numeric_exp
         
-        # Validate final structure
+        # Validating final structure
         is_valid, missing = self.validate_jd_structure(enhanced_data)
         if not is_valid:
-            print(f"⚠️ JD missing required fields: {missing}")
+            print(f"JD missing required fields: {missing}")
         
         return enhanced_data
     
     def categorize_skills_by_priority(self, jd_data: dict) -> dict:
-        """
-        Categorize skills into different priority levels
         
-        Args:
-            jd_data: Job description data
-            
-        Returns:
-            Dictionary with priority-categorized skills
-        """
         primary_skills = jd_data.get('primary_skills', [])
         secondary_skills = jd_data.get('secondary_skills', [])
         job_title = jd_data.get('job_title', '').lower()
         
-        # Determine core technology based on job title
+        # Determining core technology based on job title
         core_tech = self._identify_core_technology(job_title)
         
         categorized = {
-            'must_have': [],      # Priority 1 - Essential skills
-            'nice_to_have': [],   # Priority 2 - Good to have
-            'bonus': []           # Priority 3 - Bonus skills
+            'must_have': [],      # Priority 1 Essential skills
+            'nice_to_have': [],   # Priority 2 Good to have
+            'bonus': []           # Priority 3 Bonus skills
         }
         
-        # Categorize primary skills
+        # Categorizing primary skills
         for skill in primary_skills:
             skill_lower = skill.lower()
             if core_tech and core_tech in skill_lower:
@@ -232,30 +192,30 @@ class JDProcessor:
             else:
                 categorized['must_have'].append(skill)  # All primary are must-have
         
-        # Categorize secondary skills
+        # Categorizing secondary skills
         for skill in secondary_skills:
             categorized['nice_to_have'].append(skill)
         
         return categorized
     
     def _clean_skill_name(self, skill: str) -> str:
-        """Clean and normalize skill name"""
+        # Cleaning and normalising skill name
         if not skill:
             return ""
         
-        # Convert to lowercase and strip
+        # Converting to lowercase and strip
         clean = skill.lower().strip()
         
-        # Remove special characters except +, #, .
+        # Removing special characters except +, #, .
         clean = re.sub(r'[^\w\s+#.-]', '', clean)
         
-        # Remove common suffixes
+        # Removing common suffixes
         suffixes = ['framework', 'js', 'developer', 'development', 'language', 'library']
         for suffix in suffixes:
             if clean.endswith(f' {suffix}'):
                 clean = clean[:-len(suffix)-1].strip()
         
-        # Handle special cases
+        # Handling special cases
         if clean == 'c sharp':
             return 'c#'
         if clean == 'dot net':
@@ -264,10 +224,10 @@ class JDProcessor:
         return clean.strip()
     
     def _find_canonical_skill(self, skill: str) -> Optional[str]:
-        """Find canonical form of skill"""
+        #Finding canonical form of skill
         skill_lower = skill.lower().strip()
         
-        # Direct lookup in synonyms
+        # Directing lookup in synonyms
         for canonical, variations in self.skill_synonyms.items():
             if skill_lower in variations:
                 return canonical
@@ -284,13 +244,13 @@ class JDProcessor:
             return True
         
         if isinstance(exp_req, str):
-            # Check if string contains numeric experience pattern
+            # Checking if string contains numeric experience pattern
             return bool(re.search(r'\d+', exp_req))
         
         return False
     
     def _identify_core_technology(self, job_title: str) -> Optional[str]:
-        """Identify core technology from job title"""
+        #Identifing core technology from job title
         title_lower = job_title.lower()
         
         tech_indicators = {
