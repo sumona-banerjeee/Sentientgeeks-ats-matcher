@@ -278,9 +278,17 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
 
     print(f"Found {len(resumes)} resumes to process\n")
 
-    # Clear any existing results for this session
-    db.query(MatchingResult).filter(MatchingResult.session_id == session_id).delete()
-    db.commit()
+    # Clear any existing results for this session (atomic operation)
+    try:
+        db.query(MatchingResult).filter(
+            MatchingResult.session_id == session_id
+        ).delete()
+        db.commit()
+        print(f"Cleared existing results for session: {session_id}")
+    except Exception as e:
+        print(f"Error clearing existing results: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error clearing existing results")
 
     # Prepare data for processing
     jd_data = jd.structured_data if jd.structured_data else {}
@@ -303,11 +311,20 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
     matching_results = []
     processing_start_time = time.time()
 
-    # Process resumes in parallel
+    # Process resumes in parallel with duplicate prevention
+    processed_resume_ids = set()  # Track processed resumes to prevent duplicates
+
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Submit all tasks
-        future_to_resume = {
-            executor.submit(
+        # Submit all tasks (ensure no duplicates in input)
+        future_to_resume = {}
+        for resume in resumes:
+            # Skip duplicate resumes in input
+            if resume.id in processed_resume_ids:
+                print(f"⚠️ Skipping duplicate resume in input: {resume.filename}")
+                continue
+
+            processed_resume_ids.add(resume.id)
+            future = executor.submit(
                 process_single_resume,
                 resume,
                 jd_data,
@@ -315,28 +332,36 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
                 jd.id,
                 session_id,
                 rate_limiter,
-            ): resume
-            for resume in resumes
-        }
+            )
+            future_to_resume[future] = resume
 
         # Collect results as they complete
         completed_count = 0
+        results_resume_ids = set()  # Track results to prevent duplicate entries
+
         for future in as_completed(future_to_resume):
             resume = future_to_resume[future]
             completed_count += 1
 
             try:
                 result = future.result()
+
+                # Additional check to prevent duplicate results
+                if result.resume_id in results_resume_ids:
+                    print(f"⚠️ Skipping duplicate result: {result.filename}")
+                    continue
+
+                results_resume_ids.add(result.resume_id)
                 matching_results.append(result)
 
                 status = "✅ SUCCESS" if result.ats_score else "❌ FAILED"
                 print(
-                    f"[{completed_count}/{len(resumes)}] {status}: {resume.filename} ({result.processing_time:.2f}s)"
+                    f"[{completed_count}/{len(future_to_resume)}] {status}: {resume.filename} ({result.processing_time:.2f}s)"
                 )
 
             except Exception as e:
                 print(
-                    f"[{completed_count}/{len(resumes)}] ❌ EXCEPTION: {resume.filename} - {str(e)}"
+                    f"[{completed_count}/{len(future_to_resume)}] ❌ EXCEPTION: {resume.filename} - {str(e)}"
                 )
                 matching_results.append(
                     ResumeProcessingResult(
@@ -351,29 +376,59 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
     print(f"\n🎯 Multithreaded processing completed in {total_processing_time:.2f}s")
     print(f"📈 Average time per resume: {total_processing_time / len(resumes):.2f}s")
 
-    # Save all results to database in batch
+    # Save all results to database in batch (with duplicate prevention)
     print(f"\n💾 Saving {len(matching_results)} results to database...")
     db_save_start = time.time()
 
     successful_results = [r for r in matching_results if r.ats_score]
+    processed_resume_ids = set()  # Track processed resumes to prevent duplicates
 
     for result in successful_results:
-        matching_result = MatchingResult(
-            session_id=session_id,
-            jd_id=jd.id,
-            resume_id=result.resume_id,
-            overall_score=result.ats_score["overall_score"],
-            skill_match_score=result.ats_score["skill_match_score"],
-            experience_score=result.ats_score["experience_score"],
-            detailed_analysis=result.ats_score["detailed_analysis"],
-            rank_position=0,  # temporary, updated later
+        # Skip if we've already processed this resume
+        if result.resume_id in processed_resume_ids:
+            print(f"⚠️ Skipping duplicate resume: {result.filename}")
+            continue
+
+        # Check if result already exists (additional safety check)
+        existing_result = (
+            db.query(MatchingResult)
+            .filter(
+                MatchingResult.session_id == session_id,
+                MatchingResult.resume_id == result.resume_id,
+            )
+            .first()
         )
-        db.add(matching_result)
+
+        if existing_result:
+            print(f"⚠️ Updating existing result for: {result.filename}")
+            # Update existing record instead of creating new one
+            existing_result.overall_score = result.ats_score["overall_score"]
+            existing_result.skill_match_score = result.ats_score["skill_match_score"]
+            existing_result.experience_score = result.ats_score["experience_score"]
+            existing_result.detailed_analysis = result.ats_score["detailed_analysis"]
+            existing_result.rank_position = 0  # temporary, updated later
+        else:
+            # Create new result
+            matching_result = MatchingResult(
+                session_id=session_id,
+                jd_id=jd.id,
+                resume_id=result.resume_id,
+                overall_score=result.ats_score["overall_score"],
+                skill_match_score=result.ats_score["skill_match_score"],
+                experience_score=result.ats_score["experience_score"],
+                detailed_analysis=result.ats_score["detailed_analysis"],
+                rank_position=0,  # temporary, updated later
+            )
+            db.add(matching_result)
+            print(f"📝 Created new result for: {result.filename}")
+
+        processed_resume_ids.add(result.resume_id)
 
     try:
         db.commit()
         db_save_time = time.time() - db_save_start
         print(f"✅ Database save completed in {db_save_time:.2f}s")
+        print(f"📊 Processed {len(processed_resume_ids)} unique resumes")
     except Exception as e:
         print(f"❌ Error saving results: {str(e)}")
         db.rollback()
