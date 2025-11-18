@@ -135,9 +135,9 @@ try:
     )
 
     app.include_router(user_routes.router, tags=["Authentication"])
-    app.include_router(jd_routes.router, tags=["Job Descriptions"])
+    app.include_router(jd_routes.router)
     app.include_router(jd_library_routes.router, tags=["JD Library"]) 
-    app.include_router(resume_routes.router, tags=["Resumes"])
+    app.include_router(resume_routes.resume_router, prefix='/api/resumes', tags=["Resumes"])
     app.include_router(matching_routes.router, tags=["Matching"])
     app.include_router(history_routes.router, tags=["History"])
     app.include_router(interview_routes.router, tags=["Interviews"])

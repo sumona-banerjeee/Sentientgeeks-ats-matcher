@@ -10,7 +10,7 @@ class Settings:
     # Primary Ollama Configuration
     USE_OLLAMA: bool = os.getenv("USE_OLLAMA", "false").lower() == "true"
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "")
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gemma3:27b")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL")
     OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", "300"))
     
     # Fallback Perplexity Configuration
@@ -37,7 +37,11 @@ class Settings:
 
 
     USE_PERPLEXITY: bool = os.getenv("USE_PERPLEXITY", "true").lower() == "true"
-    PERPLEXITY_MODEL: str = os.getenv("PERPLEXITY_MODEL", "sonar-pro")
+    PERPLEXITY_MODEL: str = os.getenv("PERPLEXITY_MODEL")
+
+
+    PERPLEXITY_MODEL: str = os.getenv("PERPLEXITY_MODEL")
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL")
 
 settings = Settings()
 

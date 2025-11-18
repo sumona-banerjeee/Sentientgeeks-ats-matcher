@@ -4,8 +4,6 @@ import os
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 import re
-
-# Import settings and ollama service
 from backend.app.config import settings
 
 load_dotenv()
@@ -71,6 +69,7 @@ class LLMService:
         """Initialize Perplexity API configuration"""
         self.api_key = os.getenv("PERPLEXITY_API_KEY")
         self.base_url = "https://api.perplexity.ai/chat/completions"
+        self.model = settings.PERPLEXITY_MODEL
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
@@ -330,7 +329,7 @@ class LLMService:
             raise Exception("Perplexity API not configured (no headers)")
         
         payload = {
-            "model": "sonar-pro",
+            "model": self.model,
             "messages": [
                 {
                     "role": "user",
