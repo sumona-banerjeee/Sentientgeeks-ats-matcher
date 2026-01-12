@@ -204,7 +204,7 @@ Return ONLY valid JSON.
         print(f"Refining structure with llama.cpp based on feedback...")
         
         system_prompt = """You are an expert at refining job descriptions based on feedback. 
-Apply changes precisely and return ONLY the updated JSON."""
+        Apply changes precisely and return ONLY the updated JSON."""
         
         prompt = f"""Refine this job description structure based on user feedback.
 
@@ -226,6 +226,132 @@ Return the updated structure:
         response = self._make_request(prompt, system_prompt, temperature=0.1)
         
         return self._parse_json_response(response, "refinement")
+
+
+
+
+    def generate_interview_questions(self, jd_data: dict, difficulty_level: str = "medium-hard") -> list:
+        """
+        Generate interview questions based on job description
+    
+        Args:
+            jd_data: Job description structured data
+            difficulty_level: Question difficulty (easy, medium, hard, medium-hard)
+    
+        Returns:
+            List of interview questions
+        """
+        print(f"🎯 Generating interview questions with llama.cpp...")
+    
+        # Extract relevant information
+        job_title = jd_data.get('job_title', 'Software Engineer')
+        primary_skills = jd_data.get('primary_skills', [])
+        secondary_skills = jd_data.get('secondary_skills', [])
+        experience_required = jd_data.get('experience_required', '2-3 years')
+        responsibilities = jd_data.get('responsibilities', [])
+    
+        all_skills = primary_skills + secondary_skills
+        skills_text = ', '.join(all_skills) if all_skills else 'general technical skills'
+    
+        system_prompt = """You are an expert technical interviewer and HR professional with 15 years of experience.
+        Generate high-quality, practical interview questions that test real-world skills.
+        Return ONLY a valid JSON array of questions, no explanations."""
+    
+        prompt = f"""Generate exactly 10 interview questions for a {job_title} position.
+
+    CONTEXT:
+    - Experience Required: {experience_required}
+    - Key Skills: {skills_text}
+    - Difficulty Level: {difficulty_level}
+
+    REQUIREMENTS:
+    1. Questions should test practical knowledge, not just theory
+    2. Mix of technical (40%), problem-solving (30%), system design (20%), and behavioral (10%)
+    3. Each question should be challenging but fair
+    4. Questions should be specific to {job_title} and {skills_text}
+    5. No basic/introductory questions
+
+    RESPONSIBILITIES:
+    {chr(10).join(responsibilities[:5]) if responsibilities else 'Standard software development tasks'}
+
+    Return exactly 10 questions in this JSON format:
+    [
+    "Question 1 text here",
+    "Question 2 text here",
+    ...
+    "Question 10 text here"
+    ]
+
+    Return ONLY the JSON array, nothing else.
+    """
+    
+        try:
+            response = self._make_request(prompt, system_prompt, temperature=0.3)
+        
+            # Parse JSON response
+            import json
+            import re
+        
+            # Try direct JSON parsing
+            try:
+                questions = json.loads(response)
+                if isinstance(questions, list) and len(questions) >= 10:
+                    print(f"✅ Successfully generated {len(questions)} questions")
+                    return questions[:10]
+            except json.JSONDecodeError:
+                pass
+        
+            # Try extracting from markdown
+            json_match = re.search(r'```(?:json)?\s*(\[.*?\])\s*```', response, re.DOTALL)
+            if json_match:
+                try:
+                    questions = json.loads(json_match.group(1))
+                    if isinstance(questions, list) and len(questions) >= 10:
+                        print(f"✅ Extracted {len(questions)} questions from markdown")
+                        return questions[:10]
+                except json.JSONDecodeError:
+                    pass
+        
+            # Try finding JSON array anywhere
+            json_match = re.search(r'\[[\s\S]*?\]', response)
+            if json_match:
+                try:
+                    questions = json.loads(json_match.group())
+                    if isinstance(questions, list) and len(questions) >= 10:
+                        print(f"✅ Found {len(questions)} questions in response")
+                        return questions[:10]
+                except json.JSONDecodeError:
+                    pass
+        
+            # Fallback: Parse line by line
+            print("⚠️ JSON parsing failed, extracting questions from lines...")
+            lines = response.split('\n')
+            questions = []
+        
+            for line in lines:
+                line = line.strip()
+                if line and len(line) > 20 and not line.startswith('#'):
+                    # Remove numbering
+                    line = re.sub(r'^\d+[\.\)]\s*', '', line)
+                    # Remove quotes
+                    line = line.strip('"').strip("'").strip()
+                    if line and line not in questions:
+                        questions.append(line)
+        
+            if len(questions) >= 10:
+                print(f"✅ Extracted {len(questions)} questions from lines")
+                return questions[:10]
+        
+            raise Exception("Could not extract 10 questions from response")
+    
+        except Exception as e:
+            print(f"❌ Error generating questions: {str(e)}")
+            raise Exception(f"Interview question generation failed: {str(e)}")
+
+
+
+
+    
     
     def _parse_json_response(self, response: str, operation: str) -> Dict[str, Any]:
         """
