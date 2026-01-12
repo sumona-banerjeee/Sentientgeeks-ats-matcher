@@ -10,20 +10,23 @@ load_dotenv()
 
 
 class LLMService:
-    
+
     def __init__(self):
         """
-        Initialize LLM Service with Ollama support
-        - Ollama Inference (Primary)
-        - Agentic AI (CrewAI + Groq) (Fallback 1)
-        - Perplexity API (Fallback 2)
-        - Mock mode (Fallback 3)
+        Initialize LLM Service with priority order:
+        1. llama.cpp Server (Primary)
+        2. Ollama Inference (Fallback 1)
+        3. Agentic AI (Fallback 2)
+        4. Perplexity API (Fallback 3)
+        5. Mock mode (Fallback 4)
         """
         # INITIALIZE ALL ATTRIBUTES FIRST
         self.use_mock = False
         self.use_agentic = False
         self.agentic_available = False
         self.use_ollama = False
+        self.use_llamacpp = False
+        self.llamacpp_service = None
         self.ollama_service = None
         self.api_key = None
         self.base_url = "https://api.perplexity.ai/chat/completions"
@@ -33,8 +36,20 @@ class LLMService:
             "read_timeout": 30,
             "total_timeout": 60
         }
-        
-        # Priority 1: Check for Ollama
+    
+        # Priority 1: Check for llama.cpp Server
+        if hasattr(settings, 'USE_LLAMACPP') and settings.USE_LLAMACPP:
+            try:
+                from backend.app.services.llamacpp_service import get_llamacpp_service
+                self.llamacpp_service = get_llamacpp_service()
+                self.use_llamacpp = True
+                print("✅ LLM Service initialized with llama.cpp Server (OpenAI-compatible)")
+                return  # Exit early if llama.cpp is available
+            except Exception as e:
+                print(f"⚠️ Failed to initialize llama.cpp: {e}")
+                print("🔄 Falling back to Ollama or Perplexity...")
+    
+        # Priority 2: Check for Ollama
         if hasattr(settings, 'USE_OLLAMA') and settings.USE_OLLAMA:
             try:
                 from backend.app.services.ollama_service import get_ollama_service
@@ -45,10 +60,10 @@ class LLMService:
             except Exception as e:
                 print(f"⚠️ Failed to initialize Ollama: {e}")
                 print("🔄 Falling back to Agentic AI or Perplexity...")
-        
-        # Priority 2: Check for Agentic AI
+    
+        # Priority 3: Check for Agentic AI
         use_agentic_env = os.getenv("USE_AGENTIC_AI", "false").lower() == "true"
-        
+    
         if use_agentic_env:
             try:
                 from backend.app.services.agentic_service import EnhancedAgenticATSService
@@ -60,10 +75,64 @@ class LLMService:
             except Exception as e:
                 print(f"⚠️ Failed to initialize Agentic AI: {e}")
                 print("🔄 Falling back to Perplexity API")
-        
-        # Priority 3: Default to Perplexity
+    
+        # Priority 4: Default to Perplexity
         print("🔧 LLM Service initialized with Perplexity API (Legacy Mode)")
         self._init_perplexity()
+    
+    # def __init__(self):
+    #     """
+    #     Initialize LLM Service with Ollama support
+    #     - Ollama Inference (Primary)
+    #     - Agentic AI (CrewAI + Groq) (Fallback 1)
+    #     - Perplexity API (Fallback 2)
+    #     - Mock mode (Fallback 3)
+    #     """
+    #     # INITIALIZE ALL ATTRIBUTES FIRST
+    #     self.use_mock = False
+    #     self.use_agentic = False
+    #     self.agentic_available = False
+    #     self.use_ollama = False
+    #     self.ollama_service = None
+    #     self.api_key = None
+    #     self.base_url = "https://api.perplexity.ai/chat/completions"
+    #     self.headers = {}
+    #     self.timeout_config = {
+    #         "connection_timeout": 10,
+    #         "read_timeout": 30,
+    #         "total_timeout": 60
+    #     }
+        
+    #     # Priority 1: Check for Ollama
+    #     if hasattr(settings, 'USE_OLLAMA') and settings.USE_OLLAMA:
+    #         try:
+    #             from backend.app.services.ollama_service import get_ollama_service
+    #             self.ollama_service = get_ollama_service()
+    #             self.use_ollama = True
+    #             print("✅ LLM Service initialized with Ollama Inference")
+    #             return  # Exit early if Ollama is available
+    #         except Exception as e:
+    #             print(f"⚠️ Failed to initialize Ollama: {e}")
+    #             print("🔄 Falling back to Agentic AI or Perplexity...")
+        
+    #     # Priority 2: Check for Agentic AI
+    #     use_agentic_env = os.getenv("USE_AGENTIC_AI", "false").lower() == "true"
+        
+    #     if use_agentic_env:
+    #         try:
+    #             from backend.app.services.agentic_service import EnhancedAgenticATSService
+    #             self.agentic_service = EnhancedAgenticATSService()
+    #             self.use_agentic = True
+    #             self.agentic_available = True
+    #             print("✅ LLM Service initialized with Agentic AI (CrewAI)")
+    #             return  # Exit early if Agentic is available
+    #         except Exception as e:
+    #             print(f"⚠️ Failed to initialize Agentic AI: {e}")
+    #             print("🔄 Falling back to Perplexity API")
+        
+    #     # Priority 3: Default to Perplexity
+    #     print("🔧 LLM Service initialized with Perplexity API (Legacy Mode)")
+    #     self._init_perplexity()
     
     def _init_perplexity(self):
         """Initialize Perplexity API configuration"""
@@ -89,66 +158,212 @@ class LLMService:
         else:
             print("✅ Perplexity API configured with valid key")
     
+    # async def structure_job_description(self, jd_text: str) -> Dict[str, Any]:
+    #     """Structure JD using Ollama, Agentic AI, or Perplexity"""
+    #     # Priority 1: Try Ollama first
+    #     if self.use_ollama and self.ollama_service:
+    #         try:
+    #             print("🤖 Using Ollama for JD analysis...")
+    #             return self.ollama_service.structure_job_description(jd_text)
+    #         except Exception as e:
+    #             print(f"⚠️ Ollama failed: {e}, falling back to Agentic AI...")
+        
+    #     # Priority 2: Try Agentic AI
+    #     if self.use_agentic and self.agentic_available:
+    #         try:
+    #             print("🤖 Using Agentic AI for JD analysis...")
+    #             return await self.agentic_service.analyze_job_description(jd_text)
+    #         except Exception as e:
+    #             print(f"⚠️ Agentic AI failed: {e}, falling back to Perplexity...")
+        
+    #     # Priority 3: Fallback to Perplexity API
+    #     return await self._structure_jd_perplexity(jd_text)
+    
+    # async def extract_resume_information(self, resume_text: str) -> Dict[str, Any]:
+    #     """Extract resume info using Ollama, Agentic AI, or Perplexity"""
+    #     # Priority 1: Try Ollama first
+    #     if self.use_ollama and self.ollama_service:
+    #         try:
+    #             print("🤖 Using Ollama for resume analysis...")
+    #             return self.ollama_service.extract_resume_information(resume_text)
+    #         except Exception as e:
+    #             print(f"⚠️ Ollama failed: {e}, falling back to Agentic AI...")
+        
+    #     # Priority 2: Try Agentic AI
+    #     if self.use_agentic and self.agentic_available:
+    #         try:
+    #             print("🤖 Using Agentic AI for resume analysis...")
+    #             return await self.agentic_service.analyze_resume(resume_text)
+    #         except Exception as e:
+    #             print(f"⚠️ Agentic AI failed: {e}, falling back to Perplexity...")
+        
+    #     # Priority 3: Fallback to Perplexity API
+    #     return await self._extract_resume_perplexity(resume_text)
+    
+    # async def refine_structure_based_on_feedback(self, current_structure: Dict, feedback: str) -> Dict[str, Any]:
+    #     """Refine the structured JD based on user feedback"""
+        
+    #     # Priority 1: Try Ollama first
+    #     if self.use_ollama and self.ollama_service:
+    #         try:
+    #             print("🤖 Using Ollama for refinement...")
+    #             refined = self.ollama_service.refine_structure_based_on_feedback(
+    #                 current_structure, 
+    #                 feedback
+    #             )
+    #             print(f"✅ Ollama refinement successful!")
+    #             return refined
+    #         except Exception as e:
+    #             print(f"⚠️ Ollama refinement failed: {e}")
+    #             print("🔄 Falling back to Agentic AI...")
+        
+    #     # Priority 2: Try Agentic AI
+    #     if self.use_agentic and self.agentic_available:
+    #         try:
+    #             print("🤖 Using Agentic AI for refinement...")
+    #             refined = await self.agentic_service.refine_job_description_structure(
+    #                 current_structure, 
+    #                 feedback
+    #             )
+    #             print(f"✅ Agentic AI refinement successful!")
+    #             return refined
+    #         except Exception as e:
+    #             print(f"⚠️ Agentic AI refinement failed: {e}")
+    #             print("🔄 Falling back to Perplexity...")
+        
+    #     # Priority 3: Check if we should use mock or Perplexity
+    #     if self.use_mock or not hasattr(self, 'base_url') or not self.base_url:
+    #         print("🔨 Using mock refinement (no API available)")
+    #         return self._refine_mock_structure(current_structure, feedback)
+        
+    #     # Priority 4: Try Perplexity API
+    #     try:
+    #         print(f"🔄 Refining structure with Perplexity API...")
+            
+    #         prompt = f"""
+    #         Modify this job description structure based on the user feedback.
+            
+    #         Current Structure:
+    #         {json.dumps(current_structure, indent=2)}
+            
+    #         User Feedback:
+    #         {feedback}
+            
+    #         Apply the feedback and return the updated JSON structure with the same field names.
+    #         Return only valid JSON, no explanatory text.
+    #         """
+            
+    #         response = await self._make_api_call(prompt)
+            
+    #         try:
+    #             refined_data = json.loads(response)
+    #             print("✅ Successfully refined structure with Perplexity API")
+    #             return refined_data
+    #         except json.JSONDecodeError:
+    #             json_match = re.search(r'\{.*\}', response, re.DOTALL)
+    #             if json_match:
+    #                 refined_data = json.loads(json_match.group())
+    #                 return refined_data
+    #             else:
+    #                 raise Exception("Invalid JSON in refinement response")
+                    
+    #     except Exception as e:
+    #         print(f"❌ Perplexity refinement failed: {str(e)}")
+    #         return self._refine_mock_structure(current_structure, feedback)
+
+
+
+
     async def structure_job_description(self, jd_text: str) -> Dict[str, Any]:
-        """Structure JD using Ollama, Agentic AI, or Perplexity"""
-        # Priority 1: Try Ollama first
+        """Structure JD using llama.cpp, Ollama, Agentic AI, or Perplexity"""
+        # Priority 1: Try llama.cpp first
+        if self.use_llamacpp and self.llamacpp_service:
+            try:
+                print("Using llama.cpp for JD analysis...")
+                return self.llamacpp_service.structure_job_description(jd_text)
+            except Exception as e:
+                print(f"llama.cpp failed: {e}, falling back to Ollama...")
+    
+        # Priority 2: Try Ollama
         if self.use_ollama and self.ollama_service:
             try:
-                print("🤖 Using Ollama for JD analysis...")
+                print("Using Ollama for JD analysis...")
                 return self.ollama_service.structure_job_description(jd_text)
             except Exception as e:
-                print(f"⚠️ Ollama failed: {e}, falling back to Agentic AI...")
-        
-        # Priority 2: Try Agentic AI
+                print(f"Ollama failed: {e}, falling back to Agentic AI...")
+    
+        # Priority 3: Try Agentic AI
         if self.use_agentic and self.agentic_available:
             try:
-                print("🤖 Using Agentic AI for JD analysis...")
+                print("Using Agentic AI for JD analysis...")
                 return await self.agentic_service.analyze_job_description(jd_text)
             except Exception as e:
-                print(f"⚠️ Agentic AI failed: {e}, falling back to Perplexity...")
-        
-        # Priority 3: Fallback to Perplexity API
-        return await self._structure_jd_perplexity(jd_text)
+                print(f"Agentic AI failed: {e}, falling back to Perplexity...")
     
+        # Priority 4: Fallback to Perplexity API
+        return await self._structure_jd_perplexity(jd_text)
+
     async def extract_resume_information(self, resume_text: str) -> Dict[str, Any]:
-        """Extract resume info using Ollama, Agentic AI, or Perplexity"""
-        # Priority 1: Try Ollama first
+        """Extract resume info using llama.cpp, Ollama, Agentic AI, or Perplexity"""
+        # Priority 1: Try llama.cpp first
+        if self.use_llamacpp and self.llamacpp_service:
+            try:
+                print("Using llama.cpp for resume analysis...")
+                return self.llamacpp_service.extract_resume_information(resume_text)
+            except Exception as e:
+                print(f"llama.cpp failed: {e}, falling back to Ollama...")
+    
+        # Priority 2: Try Ollama
         if self.use_ollama and self.ollama_service:
             try:
-                print("🤖 Using Ollama for resume analysis...")
+                print("Using Ollama for resume analysis...")
                 return self.ollama_service.extract_resume_information(resume_text)
             except Exception as e:
-                print(f"⚠️ Ollama failed: {e}, falling back to Agentic AI...")
-        
-        # Priority 2: Try Agentic AI
+                print(f"Ollama failed: {e}, falling back to Agentic AI...")
+    
+        # Priority 3: Try Agentic AI
         if self.use_agentic and self.agentic_available:
             try:
-                print("🤖 Using Agentic AI for resume analysis...")
+                print("Using Agentic AI for resume analysis...")
                 return await self.agentic_service.analyze_resume(resume_text)
             except Exception as e:
-                print(f"⚠️ Agentic AI failed: {e}, falling back to Perplexity...")
-        
-        # Priority 3: Fallback to Perplexity API
-        return await self._extract_resume_perplexity(resume_text)
+                print(f"Agentic AI failed: {e}, falling back to Perplexity...")
     
+        # Priority 4: Fallback to Perplexity API
+        return await self._extract_resume_perplexity(resume_text)
+
     async def refine_structure_based_on_feedback(self, current_structure: Dict, feedback: str) -> Dict[str, Any]:
         """Refine the structured JD based on user feedback"""
-        
-        # Priority 1: Try Ollama first
+    
+        # Priority 1: Try llama.cpp first
+        if self.use_llamacpp and self.llamacpp_service:
+            try:
+                print("Using llama.cpp for refinement...")
+                refined = self.llamacpp_service.refine_structure_based_on_feedback(
+                    current_structure, 
+                    feedback
+                )
+                print(f"llama.cpp refinement successful!")
+                return refined
+            except Exception as e:
+                print(f"llama.cpp refinement failed: {e}")
+                print("Falling back to Ollama...")
+    
+        # Priority 2: Try Ollama
         if self.use_ollama and self.ollama_service:
             try:
-                print("🤖 Using Ollama for refinement...")
+                print("Using Ollama for refinement...")
                 refined = self.ollama_service.refine_structure_based_on_feedback(
                     current_structure, 
                     feedback
                 )
-                print(f"✅ Ollama refinement successful!")
+                print(f"Ollama refinement successful!")
                 return refined
             except Exception as e:
-                print(f"⚠️ Ollama refinement failed: {e}")
-                print("🔄 Falling back to Agentic AI...")
-        
-        # Priority 2: Try Agentic AI
+                print(f"Ollama refinement failed: {e}")
+                print("Falling back to Agentic AI...")
+    
+        # Priority 3: Try Agentic AI
         if self.use_agentic and self.agentic_available:
             try:
                 print("🤖 Using Agentic AI for refinement...")
@@ -161,31 +376,31 @@ class LLMService:
             except Exception as e:
                 print(f"⚠️ Agentic AI refinement failed: {e}")
                 print("🔄 Falling back to Perplexity...")
-        
-        # Priority 3: Check if we should use mock or Perplexity
+    
+        # Priority 4: Check if we should use mock or Perplexity
         if self.use_mock or not hasattr(self, 'base_url') or not self.base_url:
             print("🔨 Using mock refinement (no API available)")
             return self._refine_mock_structure(current_structure, feedback)
-        
-        # Priority 4: Try Perplexity API
+    
+        # Priority 5: Try Perplexity API
         try:
             print(f"🔄 Refining structure with Perplexity API...")
-            
+        
             prompt = f"""
             Modify this job description structure based on the user feedback.
-            
+        
             Current Structure:
             {json.dumps(current_structure, indent=2)}
-            
+        
             User Feedback:
             {feedback}
-            
+        
             Apply the feedback and return the updated JSON structure with the same field names.
             Return only valid JSON, no explanatory text.
             """
-            
+        
             response = await self._make_api_call(prompt)
-            
+        
             try:
                 refined_data = json.loads(response)
                 print("✅ Successfully refined structure with Perplexity API")
@@ -197,10 +412,13 @@ class LLMService:
                     return refined_data
                 else:
                     raise Exception("Invalid JSON in refinement response")
-                    
+                
         except Exception as e:
             print(f"❌ Perplexity refinement failed: {str(e)}")
             return self._refine_mock_structure(current_structure, feedback)
+
+    
+
     
     async def _structure_jd_perplexity(self, jd_text: str) -> Dict[str, Any]:
         """Structure JD using Perplexity API"""
