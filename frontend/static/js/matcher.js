@@ -9,10 +9,23 @@ async function startMatching() {
         // Store matching results
         appState.matchingResults = response.ranking;
         
+        // Mark that user has active results
+        if (typeof appRouter !== 'undefined') {
+            appRouter.hasActiveResults = true;
+            appRouter.currentSessionId = appState.getSessionId();
+        }
+        
         // Display results
         await displayMatchingResults();
 
+        // Save to history
         await saveMatchingToHistory(appState.getSessionId());
+        
+        // Save state after completion
+        if (typeof appRouter !== 'undefined' && appRouter.saveState) {
+            appRouter.saveState();
+        }
+        
         Utils.showToast(`Matching completed! Ranked ${response.successfully_matched} resumes.`, 'success');
         
     } catch (error) {
@@ -86,7 +99,11 @@ async function displayMatchingResults() {
         });
 
         html += `
-            <!-- Updated Export Interview Buttons -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Export Buttons -->
             <div class="export-buttons" style="margin-top: 20px; text-align: center;">
                 <button id="generate-questions-btn" class="btn btn-success" onclick="generateInterviewQuestions(false)" style="margin-right: 10px;">
                     <i class="fas fa-question-circle"></i> Interview Questions
@@ -98,9 +115,9 @@ async function displayMatchingResults() {
                     <i class="fas fa-download"></i> Export as JSON
                 </button>
                 <button class="btn btn-warning" onclick="showHistory()" style="margin-right: 10px;">
-                    <i class="fas fa-history"></i> History
+                    <i class="fas fa-history"></i> View History
                 </button>
-                <button class="btn btn-primary" onclick="startNewMatching()" style="margin-right: 10px;">
+                <button class="btn btn-primary" onclick="startNewMatching()">
                     <i class="fas fa-redo"></i> Start New Matching
                 </button>
             </div>
@@ -113,16 +130,6 @@ async function displayMatchingResults() {
             row.addEventListener('click', function () {
                 document.querySelectorAll('.result-row.selected').forEach(r => r.classList.remove('selected'));
                 this.classList.add('selected');
-            });
-        });
-
-        // Add click handlers for "View Details" buttons
-        container.querySelectorAll('button.btn-primary').forEach(button => {
-            button.addEventListener('click', (event) => {
-                event.stopPropagation(); // Prevent row selection on button click
-                const resumeId = button.getAttribute('data-resume-id');
-                const sessionId = button.getAttribute('data-session-id');
-                showCandidateDetails(sessionId, resumeId);
             });
         });
 
@@ -537,7 +544,6 @@ async function exportResults(format) {
             mimeType = 'application/json';
         }
         
-        // Create and trigger download
         const blob = new Blob([exportData], { type: mimeType });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -558,6 +564,8 @@ async function exportResults(format) {
     }
 }
 
+
+
 function convertToCSV(results) {
     const headers = ['Rank', 'Candidate Name', 'Filename', 'Overall Score', 'Skill Match Score', 'Experience Score'];
     
@@ -576,6 +584,7 @@ function convertToCSV(results) {
     
     return csvContent;
 }
+
 
 // Global click handler for modal
 document.addEventListener('click', function(event) {
@@ -981,6 +990,9 @@ function closeHistoryModal() {
 
 
 function displayHistoryResultsView(historyInfo, detailedResults, container, currentSessionId) {
+    // Check if user actually has current results
+    const hasCurrentResults = appRouter && appRouter.hasCurrentResults();
+    
     let html = `
         <div class="results-summary">
             <h3><i class="fas fa-history"></i> Historical Match Results</h3>
@@ -1014,15 +1026,11 @@ function displayHistoryResultsView(historyInfo, detailedResults, container, curr
     `;
     
     detailedResults.forEach((result, index) => {
-        // Fix ranking - use actual rank or index + 1
         const rank = result.rank_position || result.rank || (index + 1);
-        
-        // Format scores properly
         const overallScore = result.overall_score || 0;
         const skillScore = result.skill_match_score || 0;
         const expScore = result.experience_score || 0;
         
-        // Format with proper percentage
         const formatScore = (score) => {
             if (score === null || score === undefined || isNaN(score)) {
                 return { text: 'N/A', class: 'poor' };
@@ -1033,7 +1041,6 @@ function displayHistoryResultsView(historyInfo, detailedResults, container, curr
             if (numScore >= 80) className = 'excellent';
             else if (numScore >= 60) className = 'good';
             else if (numScore >= 40) className = 'average';
-            
             return { text, class: className };
         };
         
@@ -1041,7 +1048,6 @@ function displayHistoryResultsView(historyInfo, detailedResults, container, curr
         const skillFormatted = formatScore(skillScore);
         const expFormatted = formatScore(expScore);
         
-        // Status badge
         let statusClass = 'badge-danger';
         let statusText = 'Weak Match';
         if (overallScore >= 70) {
@@ -1054,13 +1060,13 @@ function displayHistoryResultsView(historyInfo, detailedResults, container, curr
         
         html += `
             <tr class="result-row">
-                <td><strong>${rank}</strong></td>
+                <td><strong>#${rank}</strong></td>
                 <td>${result.candidate_name || 'Unknown'}</td>
                 <td>${result.filename}</td>
                 <td><span class="score-badge ${overallFormatted.class}">${overallFormatted.text}</span></td>
                 <td><span class="score-badge ${skillFormatted.class}">${skillFormatted.text}</span></td>
                 <td><span class="score-badge ${expFormatted.class}">${expFormatted.text}</span></td>
-                <td><span class="badge ${statusClass}">${statusText}</span></td>
+                <td><span class="badge ${statusClass}" style="padding: 4px 10px; border-radius: 12px; font-size: 12px;">${statusText}</span></td>
             </tr>
         `;
     });
@@ -1071,9 +1077,18 @@ function displayHistoryResultsView(historyInfo, detailedResults, container, curr
         </div>
         
         <div class="export-buttons" style="margin-top: 20px; text-align: center;">
+    `;
+    
+    // 🔥 FIXED: Only show "Back to Current Results" if user has active results
+    if (hasCurrentResults && currentSessionId) {
+        html += `
             <button class="btn btn-warning" onclick="backToCurrentResults('${currentSessionId}')" style="margin-right: 10px;">
                 <i class="fas fa-arrow-left"></i> Back to Current Results
             </button>
+        `;
+    }
+    
+    html += `
             <button class="btn btn-secondary" onclick="showHistory()" style="margin-right: 10px;">
                 <i class="fas fa-history"></i> View All History
             </button>
@@ -1095,13 +1110,12 @@ function displayHistoryResultsView(historyInfo, detailedResults, container, curr
 // Auto-save to history when matching completes
 async function saveMatchingToHistory(sessionId) {
     try {
-        await Utils.makeRequest(`api/history/save/${sessionId}`, {
+        await Utils.makeRequest(`/api/history/save/${sessionId}`, {
             method: 'POST'
         });
         console.log("Matching results saved to history");
     } catch (error) {
         console.error("Failed to save to history:", error);
-        // Don't show error to user as this is background operation
     }
 }
 
@@ -1128,40 +1142,30 @@ function getScoreClass(score) {
 
 async function backToCurrentResults(currentSessionId) {
     if (!currentSessionId) {
-        Utils.showToast("No current session found. Please start a new matching process.", "info");
-        // Reset to first step
-        appState.currentStep = 1;
-        appState.updateUI();
+        Utils.showToast("No current session found.", "info");
+        appRouter.navigateToStep(1);
         return;
     }
     
     try {
         Utils.showLoading("Loading current results...");
         
-        // Load current session results
-        const response = await Utils.makeRequest(`api/matching/results/${currentSessionId}`);
+        const response = await Utils.makeRequest(`/api/matching/results/${currentSessionId}`);
         
         if (response.results && response.results.length > 0) {
-            // Display current results
             const container = document.getElementById('results-content');
             displayCurrentMatchingResults(response.results, currentSessionId, container);
-            
-            // Switch to results section
-            appState.currentStep = 5;
-            appState.updateUI();
-            
+            appRouter.navigateToStep(5);
             Utils.showToast("Returned to current matching results!", "success");
         } else {
-            Utils.showToast("No current results found. Please start a new matching process.", "info");
-            appState.currentStep = 1;
-            appState.updateUI();
+            Utils.showToast("No current results found.", "info");
+            appRouter.navigateToStep(1);
         }
         
     } catch (error) {
         console.error("Error loading current results:", error);
-        Utils.showToast("Error loading current results. Starting fresh.", "warning");
-        appState.currentStep = 1;
-        appState.updateUI();
+        Utils.showToast("Error loading current results.", "warning");
+        appRouter.navigateToStep(1);
     } finally {
         Utils.hideLoading();
     }
@@ -1200,7 +1204,7 @@ function displayCurrentMatchingResults(results, sessionId, container) {
         
         html += `
             <tr class="result-row" data-resume-id="${result.resume_id}">
-                <td><strong>${result.rank}</strong></td>
+                <td><strong>#${result.rank}</strong></td>
                 <td>${result.candidate_name || 'Unknown'}</td>
                 <td>${result.filename}</td>
                 <td><span class="score-badge ${overallScore.class}">${overallScore.text}</span></td>
@@ -1208,8 +1212,6 @@ function displayCurrentMatchingResults(results, sessionId, container) {
                 <td><span class="score-badge ${expScore.class}">${expScore.text}</span></td>
                 <td>
                     <button class="btn btn-sm btn-primary" 
-                            data-resume-id="${result.resume_id}" 
-                            data-session-id="${sessionId}"
                             onclick="showCandidateDetails('${sessionId}', '${result.resume_id}')">
                         View Details
                     </button>
@@ -1223,22 +1225,21 @@ function displayCurrentMatchingResults(results, sessionId, container) {
             </table>
         </div>
         
-        <!-- Current session export buttons -->
         <div class="export-buttons" style="margin-top: 20px; text-align: center;">
-            <button id="generate-questions-btn" class="btn btn-success" onclick="generateInterviewQuestions(false)" style="margin-right: 10px;">
-                <i class="fas fa-question-circle"></i> Interview Questions
+            <button class="btn btn-success" onclick="generateInterviewQuestions(false)" style="margin-right: 10px;">
+                Interview Questions
             </button>
             <button class="btn btn-secondary" onclick="exportResultsAsCSV()" style="margin-right: 10px;">
-                <i class="fas fa-download"></i> Export as CSV
+                Export as CSV
             </button>
             <button class="btn btn-info" onclick="exportResultsAsJSON()" style="margin-right: 10px;">
-                <i class="fas fa-download"></i> Export as JSON
+                Export as JSON
             </button>
             <button class="btn btn-warning" onclick="showHistory()" style="margin-right: 10px;">
-                <i class="fas fa-history"></i> History
+                History
             </button>
             <button class="btn btn-primary" onclick="startNewMatching()">
-                <i class="fas fa-redo"></i> Start New Matching
+                Start New Matching
             </button>
         </div>
     `;
@@ -1328,41 +1329,30 @@ async function exportHistoryResultsAsJSON(sessionId) {
  * Reset the application state and start a new matching session
  */
 async function startNewMatching() {
-    // Confirm with user before resetting
-    const confirmed = confirm(
-        'Are you sure you want to start a new matching session? This will reset the current workflow.'
-    );
+    const confirmed = confirm('Are you sure you want to start a new matching session? This will reset the current workflow.');
     
-    if (!confirmed) {
-        return;
-    }
+    if (!confirmed) return;
     
     try {
         Utils.showLoading('Preparing new matching session...');
         
-        // Clear current session data
         appState.currentStep = 1;
         appState.sessionId = null;
         appState.jdData = null;
         appState.matchingResults = null;
         
-        // Clear UI elements
+        if (appRouter) {
+            appRouter.hasActiveResults = false;
+            appRouter.currentSessionId = null;
+            appRouter.clearState();
+            appRouter.navigateToStep(1);
+        }
+        
         document.getElementById('jd-file').value = '';
         document.getElementById('jd-text').value = '';
         document.getElementById('resume-files').value = '';
         document.getElementById('results-content').innerHTML = '';
         document.getElementById('selected-files-list').innerHTML = '';
-        
-        // Reset buttons
-        document.getElementById('process-jd-btn').disabled = true;
-        document.getElementById('upload-resumes-btn').disabled = true;
-        document.getElementById('start-matching-btn').disabled = false;
-        
-        // Update UI to show step 1
-        appState.updateUI();
-        
-        // Scroll to top
-        window.scrollTo({ top: 0, behavior: 'smooth' });
         
         Utils.showToast('Ready to start a new matching session!', 'success');
         
@@ -1375,4 +1365,10 @@ async function startNewMatching() {
 }
 
 // Make function globally available
+window.startMatching = startMatching;
+window.displayMatchingResults = displayMatchingResults;
+window.exportResultsAsCSV = exportResultsAsCSV;
+window.exportResultsAsJSON = exportResultsAsJSON;
+window.backToCurrentResults = backToCurrentResults;
 window.startNewMatching = startNewMatching;
+window.displayHistoryResultsView = displayHistoryResultsView;

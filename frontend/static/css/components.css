@@ -1,10 +1,10 @@
-/* Modal Styles */
+/* =====================================================
+   BASE MODAL SYSTEM (SINGLE SOURCE OF TRUTH)
+   ===================================================== */
+
 .modal-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     background: rgba(0, 0, 0, 0.7);
     display: none;
     justify-content: center;
@@ -13,20 +13,23 @@
 }
 
 .modal-content {
-    background: white;
+    background: #ffffff;
     border-radius: 15px;
     max-width: 90%;
-    max-height: 90%;
-    overflow: hidden;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
 
+/* ---------- Header ---------- */
 .modal-header {
     padding: 1.5rem 2rem;
     border-bottom: 1px solid #e2e8f0;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    background: #ffffff;
 }
 
 .modal-header h3 {
@@ -37,33 +40,190 @@
 .modal-close {
     background: none;
     border: none;
-    font-size: 2rem;
-    color: #718096;
+    font-size: 1.8rem;
     cursor: pointer;
-    padding: 0;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    color: #718096;
 }
 
 .modal-close:hover {
     color: #2d3748;
 }
 
+/* ---------- Body ---------- */
 .modal-body {
     padding: 2rem;
-    max-height: 70vh;
+    flex: 1;
     overflow-y: auto;
 }
 
+/* ---------- Footer (ALWAYS VISIBLE) ---------- */
 .modal-footer {
     padding: 1rem 2rem;
     border-top: 1px solid #e2e8f0;
     display: flex;
     justify-content: flex-end;
+    gap: 12px;
+    background: #ffffff;
+    position: sticky;
+    bottom: 0;
 }
+
+/* =====================================================
+   HISTORY MODAL
+   ===================================================== */
+
+#history-modal .modal-content {
+    max-width: 1000px;
+    width: 95%;
+}
+
+#history-modal .results-table {
+    width: 100%;
+    font-size: 0.9rem;
+}
+
+#history-modal .score-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* =====================================================
+   CANDIDATE DETAILS MODAL
+   ===================================================== */
+
+.candidate-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    padding: 1rem;
+}
+
+.candidate-modal-overlay .modal-content {
+    max-width: 800px;
+}
+
+.candidate-modal-overlay .modal-header {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.candidate-modal-overlay .modal-header h3 {
+    color: white;
+}
+
+.candidate-modal-overlay .modal-close {
+    color: white;
+}
+
+.candidate-modal-overlay .modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+}
+
+/* =====================================================
+   INTERVIEW QUESTIONS MODAL
+   ===================================================== */
+
+.interview-modal .modal-content {
+    max-width: 900px;
+}
+
+.interview-modal .modal-header {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.interview-modal .modal-header h3 {
+    color: white;
+}
+
+.interview-modal .modal-footer {
+    justify-content: space-between;
+}
+
+/* =====================================================
+   RESULTS / TABLE HELPERS
+   ===================================================== */
+
+.results-table-container {
+    overflow-x: auto;
+}
+
+.results-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.results-table th,
+.results-table td {
+    padding: 12px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+}
+
+.results-table th {
+    background: #f7fafc;
+    color: #4a5568;
+    font-weight: 600;
+}
+
+/* =====================================================
+   SCORE BADGES
+   ===================================================== */
+
+.score-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.score-excellent {
+    background: #d4edda;
+    color: #155724;
+}
+
+.score-good {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.score-average {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.score-poor {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* =====================================================
+   RESPONSIVE FIXES
+   ===================================================== */
+
+@media (max-width: 768px) {
+    .modal-content {
+        max-width: 95%;
+        margin: 1rem;
+    }
+
+    .modal-body {
+        padding: 1rem;
+    }
+
+    .modal-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
 
 /* Analysis Sections */
 .analysis-section {
@@ -315,10 +475,7 @@
     font-family: 'Courier New', monospace;
 }
 
-.results-table-container {
-    overflow-x: auto;
-    margin-bottom: 2rem;
-}
+
 
 .result-row.selected {
     background: #ebf8ff !important;
@@ -507,64 +664,8 @@
 }
 
 
-/* Candidate Details Modal */
-.candidate-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    padding: 1rem;
-}
 
-.candidate-modal {
-    background: white;
-    border-radius: 12px;
-    max-width: 800px;
-    width: 100%;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-}
 
-.modal-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid #eee;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 12px 12px 0 0;
-}
-
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    color: white;
-    cursor: pointer;
-    padding: 0;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-}
-
-.modal-close:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.modal-content {
-    padding: 1.5rem;
-}
 
 .info-section {
     margin-bottom: 2rem;
@@ -641,13 +742,14 @@
 }
 
 .modal-footer {
-    padding: 1.5rem;
-    border-top: 1px solid #eee;
+    padding: 1rem 2rem;
+    border-top: 1px solid #e2e8f0;
     display: flex;
     justify-content: flex-end;
-    gap: 1rem;
-    background: #f9f9f9;
-    border-radius: 0 0 12px 12px;
+    gap: 12px;
+    background: #fff;
+    position: sticky;         /* ✅ ALWAYS VISIBLE */
+    bottom: 0;
 }
 
 @media (max-width: 768px) {
@@ -663,23 +765,12 @@
 
 
 
-/* Interview Questions Modal Styles */
-.interview-modal .modal-content {
-    max-width: 900px;
-    max-height: 90vh;
-    overflow-y: auto;
-}
 
 .interview-modal-content {
     padding: 0;
 }
 
-.interview-modal .modal-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 20px;
-    border-radius: 8px 8px 0 0;
-}
+
 
 .interview-job-info {
     background: #f8f9fa;
@@ -808,22 +899,7 @@
 }
 
 
-/* History Modal Styles */
-#history-modal .modal-content {
-    max-width: 1000px;
-    width: 95%;
-}
 
-#history-modal .results-table {
-    width: 100%;
-    font-size: 0.9rem;
-}
-
-#history-modal .score-badge {
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-}
 
 .btn-warning {
     background: linear-gradient(135deg, #f39c12, #e67e22);
@@ -979,33 +1055,7 @@
     color: #999;
 }
 
-.score-badge {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
-}
 
-.score-excellent {
-    background-color: #d4edda;
-    color: #155724;
-}
-
-.score-good {
-    background-color: #d1ecf1;
-    color: #0c5460;
-}
-
-.score-average {
-    background-color: #fff3cd;
-    color: #856404;
-}
-
-.score-poor {
-    background-color: #f8d7da;
-    color: #721c24;
-}
 
 .no-history {
     text-align: center;

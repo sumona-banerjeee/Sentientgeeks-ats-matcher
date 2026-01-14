@@ -1,6 +1,7 @@
 // ============================================================================
-// GLOBAL STATE MANAGEMENT
+// MAIN.JS - UPDATED WITH ROUTING INTEGRATION
 // ============================================================================
+
 class AppState {
     constructor() {
         this.sessionId = null;
@@ -24,10 +25,15 @@ class AppState {
     
     nextStep() {
         this.currentStep++;
-        this.updateUI();
+        
+        // Use router navigation if available
+        if (typeof appRouter !== 'undefined' && appRouter.navigateToStep) {
+            appRouter.navigateToStep(this.currentStep);
+        } else {
+            this.updateUI();
+        }
     }
     
-    // 🔥 UPDATED: Added home button visibility update
     updateUI() {
         // Hide all sections
         document.querySelectorAll('.section').forEach(section => {
@@ -40,7 +46,7 @@ class AppState {
             currentSection.classList.add('active');
         }
         
-        // 🔥 NEW: Update home button visibility (for routing.js integration)
+        // Update home button visibility
         if (typeof appRouter !== 'undefined' && appRouter.updateHomeButtonVisibility) {
             appRouter.updateHomeButtonVisibility();
         }
@@ -51,8 +57,6 @@ class AppState {
         return sections[this.currentStep - 1] || 'jd-section';
     }
 }
-
-
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -104,7 +108,6 @@ class Utils {
         }
         
         try {
-            console.log(`Making request to: ${url}`);
             const response = await fetch(url, mergedOptions);
             
             if (!response.ok) {
@@ -145,14 +148,10 @@ class Utils {
     }
 }
 
-
-
 // ============================================================================
 // INITIALIZE APP STATE (GLOBAL)
 // ============================================================================
 const appState = new AppState();
-
-
 
 // ============================================================================
 // DOM READY - INITIALIZE APPLICATION
@@ -161,28 +160,22 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
 });
 
-
-
-// 🔥 UPDATED: Let routing.js handle state restoration
 function initializeApp() {
-    // Check if there's an existing session
+    // Check existing session
     const existingSessionId = appState.getSessionId();
     
     if (existingSessionId) {
         console.log('📦 Existing session found:', existingSessionId);
-        // Note: routing.js will restore state if it was a completed Step 5 session
     }
     
     // Initialize event listeners
     initializeEventListeners();
     
-    // Show first step (will be overridden by routing.js if state is restored)
+    // Show first step
     appState.updateUI();
     
     console.log('✅ App initialized successfully');
 }
-
-
 
 // ============================================================================
 // EVENT LISTENERS INITIALIZATION
@@ -229,15 +222,12 @@ function initializeEventListeners() {
         resumeFilesInput.addEventListener('change', handleResumeFilesSelect);
     }
     
-    
     // Start matching button
     const startMatchingBtn = document.getElementById('start-matching-btn');
     if (startMatchingBtn) {
         startMatchingBtn.addEventListener('click', startMatching);
     }
 }
-
-
 
 // ============================================================================
 // JD UPLOAD HANDLERS
@@ -248,7 +238,7 @@ function handleJDFileSelect(event) {
         try {
             Utils.validateFile(file);
             const textInput = document.getElementById('jd-text');
-            if (textInput) textInput.value = ''; // Clear text input
+            if (textInput) textInput.value = '';
             updateProcessJDButton();
             Utils.showToast('JD file selected successfully', 'success');
         } catch (error) {
@@ -258,17 +248,13 @@ function handleJDFileSelect(event) {
     }
 }
 
-
-
 function handleJDTextInput(event) {
     if (event.target.value.trim()) {
         const fileInput = document.getElementById('jd-file');
-        if (fileInput) fileInput.value = ''; // Clear file input
+        if (fileInput) fileInput.value = '';
     }
     updateProcessJDButton();
 }
-
-
 
 function updateProcessJDButton() {
     const fileInput = document.getElementById('jd-file');
@@ -282,8 +268,6 @@ function updateProcessJDButton() {
     
     processBtn.disabled = !(hasFile || hasText);
 }
-
-
 
 // ============================================================================
 // PROCESS JOB DESCRIPTION
@@ -304,10 +288,8 @@ async function processJobDescription() {
         
         if (fileInput.files.length > 0) {
             formData.append('file', fileInput.files[0]);
-            console.log('Uploading file:', fileInput.files[0].name);
         } else if (textInput.value.trim()) {
             formData.append('text', textInput.value.trim());
-            console.log('Uploading text, length:', textInput.value.trim().length);
         } else {
             throw new Error('Please provide either a JD file or text');
         }
@@ -316,8 +298,6 @@ async function processJobDescription() {
             method: 'POST',
             body: formData
         });
-        
-        console.log('Response status:', response.status);
         
         if (!response.ok) {
             let errorText;
@@ -331,7 +311,6 @@ async function processJobDescription() {
         }
         
         const result = await response.json();
-        console.log('JD processing result:', result);
         
         // Store session data
         appState.setSessionId(result.session_id);
@@ -340,286 +319,32 @@ async function processJobDescription() {
         // Display structured JD
         displayStructuredJD(result.structured_data);
         
-        // Move to next step
+        // Move to next step using router
         appState.nextStep();
         
         Utils.showToast('Job description processed successfully!', 'success');
         
     } catch (error) {
         console.error('Error processing JD:', error);
-        
-        if (error.message.includes('Failed to fetch')) {
-            Utils.showToast('Cannot connect to server. Is the backend running?', 'error');
-        } else if (error.message.includes('404')) {
-            Utils.showToast('Upload endpoint not found. Check your backend API routes.', 'error');
-        } else {
-            Utils.showToast(`Error: ${error.message}`, 'error');
-        }
+        Utils.showToast(`Error: ${error.message}`, 'error');
     } finally {
         Utils.hideLoading();
     }
 }
 
-
-
-// ============================================================================
-// DISPLAY STRUCTURED JD
-// ============================================================================
-function displayStructuredJD(structuredData) {
-    const container = document.getElementById('structured-jd-display');
-    if (!container) {
-        console.log('Structured JD display container not found');
-        return;
-    }
-    
-    let html = '<div class="structured-jd">';
-    html += '<h3>Structured Job Description</h3>';
-    
-    // Job Title
-    if (structuredData.job_title) {
-        html += `<div class="jd-field"><strong>Job Title:</strong> ${structuredData.job_title}</div>`;
-    }
-    
-    // Company
-    if (structuredData.company) {
-        html += `<div class="jd-field"><strong>Company:</strong> ${structuredData.company}</div>`;
-    }
-    
-    // Location
-    if (structuredData.location) {
-        html += `<div class="jd-field"><strong>Location:</strong> ${structuredData.location}</div>`;
-    }
-    
-    // Experience Required
-    if (structuredData.experience_required) {
-        html += `<div class="jd-field"><strong>Experience Required:</strong> ${structuredData.experience_required}</div>`;
-    }
-    
-    // Primary Skills
-    if (structuredData.primary_skills && structuredData.primary_skills.length > 0) {
-        html += '<div class="jd-field"><strong>Primary Skills:</strong><ul>';
-        structuredData.primary_skills.forEach(skill => {
-            html += `<li>${skill}</li>`;
-        });
-        html += '</ul></div>';
-    }
-    
-    // Secondary Skills
-    if (structuredData.secondary_skills && structuredData.secondary_skills.length > 0) {
-        html += '<div class="jd-field"><strong>Secondary Skills:</strong><ul>';
-        structuredData.secondary_skills.forEach(skill => {
-            html += `<li>${skill}</li>`;
-        });
-        html += '</ul></div>';
-    }
-    
-    // Responsibilities
-    if (structuredData.responsibilities && structuredData.responsibilities.length > 0) {
-        html += '<div class="jd-field"><strong>Key Responsibilities:</strong><ul>';
-        structuredData.responsibilities.forEach(resp => {
-            html += `<li>${resp}</li>`;
-        });
-        html += '</ul></div>';
-    }
-    
-    // Qualifications
-    if (structuredData.qualifications && structuredData.qualifications.length > 0) {
-        html += '<div class="jd-field"><strong>Qualifications:</strong><ul>';
-        structuredData.qualifications.forEach(qual => {
-            html += `<li>${qual}</li>`;
-        });
-        html += '</ul></div>';
-    }
-    
-    html += '</div>';
-    
-    container.innerHTML = html;
-}
-
-
-
-// ============================================================================
-// STRUCTURE APPROVAL
-// ============================================================================
-async function approveStructure() {
-    if (!appState.getSessionId()) {
-        Utils.showToast('No active session found', 'error');
-        return;
-    }
-    
-    try {
-        Utils.showLoading('Approving structure...');
-        
-        const response = await Utils.makeRequest(`/api/jd/approve-structure/${appState.getSessionId()}`, {
-            method: 'POST',
-            body: { approved: true }
-        });
-        
-        if (response.ready_for_skills_weightage) {
-            appState.nextStep();
-            Utils.showToast('Structure approved! Please set skills weightage.', 'success');
-        }
-        
-    } catch (error) {
-        Utils.showToast(`Error approving structure: ${error.message}`, 'error');
-    } finally {
-        Utils.hideLoading();
-    }
-}
-
-
-
-async function requestStructureChanges() {
-    const feedback = prompt('Please provide feedback for structure changes:');
-    if (!feedback) return;
-    
-    try {
-        Utils.showLoading('Processing feedback...');
-        
-        const response = await Utils.makeRequest(`/api/jd/approve-structure/${appState.getSessionId()}`, {
-            method: 'POST',
-            body: { approved: false, feedback: feedback }
-        });
-        
-        if (response.revised_structure) {
-            displayStructuredJD(response.revised_structure);
-            Utils.showToast('Structure updated based on feedback', 'success');
-        }
-        
-    } catch (error) {
-        Utils.showToast(`Error processing feedback: ${error.message}`, 'error');
-    } finally {
-        Utils.hideLoading();
-    }
-}
-
-
-
-// ============================================================================
-// SKILLS WEIGHTAGE
-// ============================================================================
-async function setSkillsWeightage() {
-    // This would typically involve collecting skill weights from a form
-    // For now, setting default weights
-    const defaultWeights = {
-        'python': 30,
-        'javascript': 25,
-        'react': 20,
-        'sql': 15,
-        'git': 10
-    };
-    
-    try {
-        Utils.showLoading('Setting skills weightage...');
-        
-        await Utils.makeRequest(`/api/jd/set-skills-weightage/${appState.getSessionId()}`, {
-            method: 'POST',
-            body: defaultWeights
-        });
-        
-        appState.nextStep();
-        Utils.showToast('Skills weightage set successfully!', 'success');
-        
-    } catch (error) {
-        Utils.showToast(`Error setting skills weightage: ${error.message}`, 'error');
-    } finally {
-        Utils.hideLoading();
-    }
-}
-
-
-
-// ============================================================================
-// RESUME UPLOAD
-// ============================================================================
-function handleResumeFilesSelect(event) {
-    const files = event.target.files;
-    if (files && files.length > 0) {
-        Utils.showToast(`${files.length} resume(s) selected`, 'success');
-        
-        // Enable upload button
-        const uploadBtn = document.getElementById('upload-resumes-btn');
-        if (uploadBtn) {
-            uploadBtn.disabled = false;
-        }
-    }
-}
-
-
-
-
-// ============================================================================
-// MATCHING
-// ============================================================================
 function goToResumeUpload() {
-    appState.currentStep = 4;
-    appState.updateUI();
+    if (typeof appRouter !== 'undefined' && appRouter.navigateToStep) {
+        appRouter.navigateToStep(4);
+    } else {
+        appState.currentStep = 4;
+        appState.updateUI();
+    }
     Utils.showToast('Please upload resumes before matching', 'info');
 }
-
-
-
-async function startMatching() {
-    try {
-        // First check if resumes exist
-        const sessionResponse = await Utils.makeRequest(`/api/resumes/session/${appState.getSessionId()}`);
-        
-        if (!sessionResponse.resumes || sessionResponse.resumes.length === 0) {
-            Utils.showToast('Please upload resumes first before starting matching', 'warning');
-            goToResumeUpload();
-            return;
-        }
-        
-        Utils.showLoading('Starting ATS matching process...');
-        
-        const response = await Utils.makeRequest(`/api/matching/start/${appState.getSessionId()}`, {
-            method: 'POST'
-        });
-        
-        appState.matchingResults = response.ranking;
-        await displayMatchingResults();
-        
-        // ✅ NEW: Explicitly save state after Step 5 completion
-        if (typeof appRouter !== 'undefined' && appRouter.saveState) {
-            appRouter.saveState();
-            console.log('💾 State saved after Step 5 completion');
-        }
-        
-        Utils.showToast(`Matching completed! Ranked ${response.successfully_matched} resumes.`, 'success');
-        
-    } catch (error) {
-        console.error('Error starting matching:', error);
-        if (error.message.includes('404') && error.message.includes('No matching results found')) {
-            Utils.showToast('No resumes found. Please upload resumes first.', 'warning');
-            goToResumeUpload();
-        } else {
-            Utils.showToast(error.message, 'error');
-        }
-    } finally {
-        Utils.hideLoading();
-    }
-}
-
-
-
-async function displayMatchingResults() {
-    // Placeholder for displaying matching results
-    // Your matcher.js file will handle the actual display
-    console.log('Displaying matching results:', appState.matchingResults);
-    appState.nextStep();
-    
-    // If you have displayMatchingResults function in matcher.js, call it here
-    if (typeof window.displayMatchingResults === 'function') {
-        await window.displayMatchingResults();
-    }
-}
-
-
 
 // ============================================================================
 // MAKE FUNCTIONS GLOBALLY AVAILABLE
 // ============================================================================
 window.appState = appState;
 window.Utils = Utils;
-window.displayStructuredJD = displayStructuredJD;
 window.goToResumeUpload = goToResumeUpload;
