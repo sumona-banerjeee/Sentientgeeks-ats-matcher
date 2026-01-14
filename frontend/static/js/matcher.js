@@ -104,7 +104,7 @@ async function displayMatchingResults() {
             </div>
             
             <!-- Export Buttons -->
-            <div class="export-buttons" style="margin-top: 20px; text-align: center;">
+            <div class="export-buttons sticky-actions" style="margin-top: 20px; text-align: center;">
                 <button id="generate-questions-btn" class="btn btn-success" onclick="generateInterviewQuestions(false)" style="margin-right: 10px;">
                     <i class="fas fa-question-circle"></i> Interview Questions
                 </button>
@@ -710,54 +710,59 @@ function displayInterviewQuestions(data) {
         `${data.total_questions} Questions Generated`;
     
     // Show modal
-    modal.style.display = 'block';
+    // modal.style.display = 'block';
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
 }
 
 function createInterviewQuestionsModal() {
     const modal = document.createElement('div');
     modal.id = 'interview-questions-modal';
-    modal.className = 'modal interview-modal';
-    
+    modal.className = 'modal-overlay interview-modal';
+
     modal.innerHTML = `
-        <div class="modal-content interview-modal-content">
+        <div class="modal-content">
             <div class="modal-header">
-                <h2 id="interview-modal-title">Interview Questions</h2>
-                <span class="close" onclick="closeInterviewModal()">&times;</span>
+                <h3 id="interview-modal-title">Interview Questions</h3>
+                <button class="modal-close" onclick="closeInterviewModal()">&times;</button>
             </div>
-            
+
             <div class="modal-body">
-                <div id="interview-job-info" class="interview-job-info"></div>
-                
-                <div class="interview-questions-container">
-                    <div id="interview-questions-list" class="interview-questions-list"></div>
-                </div>
-                
-                <div class="interview-actions">
-                    <button id="regenerate-questions-btn" class="btn btn-secondary" onclick="generateInterviewQuestions(true)">
-                        <i class="fas fa-sync-alt"></i> Regenerate Questions
+                <div id="interview-job-info"></div>
+                <div id="interview-questions-list" class="interview-questions-list"></div>
+            </div>
+
+            <div class="modal-footer">
+                <span id="interview-questions-count"></span>
+                <div>
+                    <button id="regenerate-questions-btn"
+                            class="btn btn-secondary"
+                            onclick="generateInterviewQuestions(true)">
+                        Regenerate
                     </button>
                     <button class="btn btn-primary" onclick="exportInterviewQuestions()">
-                        <i class="fas fa-download"></i> Export Questions
+                        Export
+                    </button>
+                    <button class="btn btn-outline" onclick="closeInterviewModal()">
+                        Close
                     </button>
                 </div>
-            </div>
-            
-            <div class="modal-footer">
-                <span id="interview-questions-count" class="questions-count"></span>
-                <small class="text-muted">Questions generated using AI based on job requirements</small>
             </div>
         </div>
     `;
-    
+
     return modal;
 }
+
 
 function closeInterviewModal() {
     const modal = document.getElementById('interview-questions-modal');
     if (modal) {
-        modal.style.display = 'none';
+        modal.remove();
+        document.body.style.overflow = 'auto';
     }
 }
+
 
 function exportInterviewQuestions() {
     if (!currentInterviewQuestions || currentInterviewQuestions.length === 0) {
