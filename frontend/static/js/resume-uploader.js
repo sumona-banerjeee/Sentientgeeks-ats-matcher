@@ -271,6 +271,114 @@ async function uploadAndProcessResumes() {
 }
 
 
+// ============================================================
+// ✅ CRITICAL UPDATE FOR resume-uploader.js
+// Add this handler and update your upload completion logic
+// ============================================================
+
+/**
+ * ✅ NEW: Handle resume upload completion properly
+ * Call this after successful upload instead of directly showing results
+ */
+async function handleResumeUploadComplete(sessionId, uploadResponse) {
+    try {
+        console.log(`✅ Resume upload complete for session: ${sessionId}`);
+        console.log(`   Processed: ${uploadResponse.successfully_processed} resumes`);
+        
+        // Verify session ID matches
+        const currentSessionId = appState.getSessionId();
+        if (sessionId !== currentSessionId) {
+            console.warn(`⚠️ Session ID mismatch detected!`);
+            console.warn(`   Upload session: ${sessionId}`);
+            console.warn(`   Current session: ${currentSessionId}`);
+            console.warn(`   Forcing update to upload session...`);
+            
+            // Force update to correct session
+            appState.sessionId = sessionId;
+        }
+        
+        // Clear any old session data
+        if (typeof appRouter !== 'undefined') {
+            console.log('🧹 Clearing old results flag...');
+            appRouter.hasActiveResults = false;
+            appRouter.currentSessionId = sessionId;
+        }
+        
+        // Clear old matching results
+        appState.matchingResults = null;
+        
+        // Navigate to matching step (step 5)
+        if (typeof appRouter !== 'undefined') {
+            appRouter.navigateToStep(5);
+        } else {
+            appState.currentStep = 5;
+            appState.updateUI();
+        }
+        
+        // ✅ IMPORTANT: Show matching ready screen (NOT old results)
+        showMatchingReadyScreen(sessionId);
+        
+        Utils.showToast(
+            `Successfully processed ${uploadResponse.successfully_processed} resumes! Click "Start ATS Matching" to begin.`, 
+            'success'
+        );
+        
+    } catch (error) {
+        console.error('Error handling upload complete:', error);
+        Utils.showToast('Error: ' + error.message, 'error');
+    }
+}
+
+// Make it globally available
+window.handleResumeUploadComplete = handleResumeUploadComplete;
+
+
+async function uploadResumes() {
+    try {
+        const sessionId = appState.getSessionId();
+        const fileInput = document.getElementById('resume-files');
+        const files = fileInput.files;
+        
+        if (!files || files.length === 0) {
+            Utils.showToast('Please select resume files to upload', 'error');
+            return;
+        }
+        
+        Utils.showLoading(`Uploading ${files.length} resume(s)...`);
+        
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            formData.append('files', files[i]);
+        }
+        
+        const response = await Utils.makeRequest(
+            `/api/resumes/upload/${sessionId}`, 
+            {
+                method: 'POST',
+                body: formData
+            }
+        );
+        
+    
+        await handleResumeUploadComplete(sessionId, response);
+        
+    } catch (error) {
+        console.error('Error uploading resumes:', error);
+        Utils.showToast('Error uploading resumes: ' + error.message, 'error');
+    } finally {
+        Utils.hideLoading();
+    }
+}
+
+
+
+
+
+// Make functions globally available
+window.handleResumeUploadComplete = handleResumeUploadComplete;
+window.uploadResumes = uploadResumes;
+
+
 // ============================================================================
 // RESULTS DISPLAY
 // ============================================================================

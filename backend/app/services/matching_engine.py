@@ -174,6 +174,99 @@ class MatchingEngine:
             traceback.print_exc()
             return self._get_default_score(str(e))
     
+    def _extract_job_priorities(self, jd_data: dict, manual_priorities: List[Dict] = None) -> dict:
+        """Extract job priorities from JD data"""
+        if manual_priorities:
+            return {
+                'roles': manual_priorities,
+                'primary_skills': jd_data.get('primary_skills', []),
+                'secondary_skills': jd_data.get('secondary_skills', [])
+            }
+        
+        return {
+            'roles': [{
+                'role': jd_data.get('job_title', 'Unknown'),
+                'priority': 1,
+                'key_skills': jd_data.get('primary_skills', [])[:5],
+                'weight': 1.0
+            }],
+            'primary_skills': jd_data.get('primary_skills', []),
+            'secondary_skills': jd_data.get('secondary_skills', [])
+        }
+
+    def _calculate_complete_skills_score(
+        self, 
+        resume_data: dict, 
+        job_priorities: dict, 
+        skills_weightage: dict
+    ) -> float:
+        """Calculate complete skills score"""
+        resume_skills = self._extract_resume_skills(resume_data)
+        primary_skills = job_priorities.get('primary_skills', [])
+        
+        if not primary_skills:
+            return 50.0
+        
+        matched = 0
+        for skill in primary_skills:
+            skill_lower = skill.lower()
+            if any(skill_lower in str(rs.get('skill', '')).lower() for rs in resume_skills):
+                matched += 1
+        
+        return min(100, (matched / len(primary_skills)) * 100)
+
+    def _calculate_enhanced_experience_score(
+        self,
+        resume_data: dict,
+        job_priorities: dict,
+        jd_exp_required: float
+    ) -> float:
+        """Calculate enhanced experience score"""
+        total_exp = resume_data.get('total_experience', 0)
+        experience_timeline = resume_data.get('experience_timeline', [])
+        
+        if not experience_timeline:
+            return 30.0 if total_exp > 0 else 15.0
+        
+        # Simple role matching
+        jd_role = job_priorities.get('roles', [{}])[0].get('role', '').lower()
+        matched_roles = 0
+        
+        for exp in experience_timeline:
+            exp_role = exp.get('role', '').lower()
+            if jd_role and any(word in exp_role for word in jd_role.split()):
+                matched_roles += 1
+        
+        role_score = min(80, (matched_roles / max(1, len(experience_timeline))) * 100)
+        exp_score = min(100, (total_exp / max(1, jd_exp_required)) * 50)
+        
+        return (role_score * 0.6) + (exp_score * 0.4)
+
+    def _parse_experience_years(self, exp_str: str) -> float:
+        """Parse experience requirement to years"""
+        if not exp_str:
+            return 0
+        
+        exp_str = str(exp_str).lower()
+        
+        # Handle "X+ years"
+        if '+' in exp_str:
+            match = re.search(r'(\d+)\+', exp_str)
+            if match:
+                return float(match.group(1))
+        
+        # Handle "X-Y years"
+        match = re.search(r'(\d+)\s*-\s*(\d+)', exp_str)
+        if match:
+            return float(match.group(1))
+        
+        # Handle single number
+        match = re.search(r'(\d+)', exp_str)
+        if match:
+            return float(match.group(1))
+        
+        return 2.0
+    
     def _extract_resume_skills(self, resume_data: Dict) -> List[Dict]:
         """Extract all skills with context and source"""
         skills_with_context = []

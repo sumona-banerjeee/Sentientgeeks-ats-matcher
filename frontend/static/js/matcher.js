@@ -1,25 +1,43 @@
+// ============================================================
+// ✅ CRITICAL UPDATES FOR matcher.js
+// Replace these specific functions in your existing file
+// ============================================================
+
+// ✅ UPDATE #1: startMatching function (around line 1-50)
 async function startMatching() {
     try {
+        // ✅ FIX: Get the CURRENT session ID dynamically
+        const currentSessionId = appState.getSessionId();
+        
+        if (!currentSessionId) {
+            Utils.showToast('No active session found. Please upload a JD first.', 'error');
+            return;
+        }
+        
+        console.log(`🚀 Starting matching for session: ${currentSessionId}`);
         Utils.showLoading('Starting ATS matching process...');
         
-        const response = await Utils.makeRequest(`/api/matching/start/${appState.getSessionId()}`, {
+        // ✅ FIX: Use current session ID explicitly
+        const response = await Utils.makeRequest(`/api/matching/start/${currentSessionId}?t=${Date.now()}`, {
             method: 'POST'
         });
+        
+        console.log(`✅ Matching complete for session: ${currentSessionId}`);
         
         // Store matching results
         appState.matchingResults = response.ranking;
         
-        // Mark that user has active results
+        // ✅ FIX: Update router with CURRENT session
         if (typeof appRouter !== 'undefined') {
             appRouter.hasActiveResults = true;
-            appRouter.currentSessionId = appState.getSessionId();
+            appRouter.currentSessionId = currentSessionId;
         }
         
-        // Display results
-        await displayMatchingResults();
+        // ✅ FIX: Display results for CURRENT session (pass it explicitly)
+        await displayMatchingResults(currentSessionId);
 
         // Save to history
-        await saveMatchingToHistory(appState.getSessionId());
+        await saveMatchingToHistory(currentSessionId);
         
         // Save state after completion
         if (typeof appRouter !== 'undefined' && appRouter.saveState) {
@@ -36,10 +54,20 @@ async function startMatching() {
     }
 }
 
-async function displayMatchingResults() {
+// ✅ UPDATE #2: displayMatchingResults function (around line 52-150)
+async function displayMatchingResults(sessionId = null) {
     try {
-        const sessionId = appState.getSessionId();
-        const response = await Utils.makeRequest(`/api/matching/results/${sessionId}`);
+        // ✅ FIX: Use passed session ID or fallback to appState
+        const currentSessionId = sessionId || appState.getSessionId();
+        
+        if (!currentSessionId) {
+            Utils.showToast('No session ID available', 'error');
+            return;
+        }
+        
+        console.log(`📊 Fetching results for session: ${currentSessionId}`);
+        
+        const response = await Utils.makeRequest(`/api/matching/results/${currentSessionId}`);
         const results = response.results;
 
         const container = document.getElementById('results-content');
@@ -54,7 +82,7 @@ async function displayMatchingResults() {
             <div class="results-summary">
                 <h3>ATS Matching Results</h3>
                 <p>Total Candidates Processed: <strong>${results.length}</strong></p>
-                <p>Session ID: <code>${sessionId}</code></p>
+                <p>Session ID: <code>${currentSessionId}</code></p>
             </div>
 
             <div class="results-table-container">
@@ -89,8 +117,8 @@ async function displayMatchingResults() {
                     <td>
                         <button class="btn btn-sm btn-primary" 
                                 data-resume-id="${result.resume_id}" 
-                                data-session-id="${sessionId}"
-                                onclick="showCandidateDetails('${sessionId}', ${result.resume_id})">
+                                data-session-id="${currentSessionId}"
+                                onclick="showCandidateDetails('${currentSessionId}', ${result.resume_id})">
                             View Details
                         </button>
                     </td>
@@ -137,6 +165,113 @@ async function displayMatchingResults() {
         console.error('Error displaying results:', error);
         Utils.showToast('Error displaying results: ' + error.message, 'error');
     }
+}
+
+// ✅ UPDATE #3: Add this NEW function at the end of matcher.js
+function showMatchingReadyScreen(sessionId) {
+    console.log(`📋 Showing matching ready screen for session: ${sessionId}`);
+    
+    const container = document.getElementById('results-content');
+    container.innerHTML = `
+        <div class="matching-ready" style="text-align: center; padding: 50px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="font-size: 64px; margin-bottom: 20px;">✅</div>
+            <h2 style="color: #333; margin-bottom: 15px;">Resumes Processed Successfully!</h2>
+            <p style="margin: 20px 0; color: #666; font-size: 16px;">
+                All resumes have been uploaded and processed.<br>
+                Click the button below to start the ATS matching process.
+            </p>
+            <p style="margin: 15px 0;">
+                <strong>Session ID:</strong> 
+                <code style="background: #f4f4f4; padding: 5px 10px; border-radius: 4px; font-family: monospace;">
+                    ${sessionId}
+                </code>
+            </p>
+            <button class="btn btn-primary btn-lg" 
+                    onclick="startMatching()" 
+                    style="margin-top: 30px; padding: 15px 40px; font-size: 18px; cursor: pointer;">
+                🚀 Start ATS Matching
+            </button>
+        </div>
+    `;
+}
+
+// Make the function globally available
+window.showMatchingReadyScreen = showMatchingReadyScreen;
+
+// ✅ UPDATE #4: Update startNewMatching function
+async function startNewMatching() {
+    const confirmed = confirm('Are you sure you want to start a new matching session? This will reset the current workflow.');
+    
+    if (!confirmed) return;
+    
+    try {
+        Utils.showLoading('Preparing new matching session...');
+        
+        console.log('🧹 Clearing old session state...');
+        
+        // Clear all state
+        appState.currentStep = 1;
+        appState.sessionId = null;
+        appState.jdData = null;
+        appState.matchingResults = null;
+        
+        if (appRouter) {
+            appRouter.hasActiveResults = false;
+            appRouter.currentSessionId = null;
+            if (appRouter.clearState) {
+                appRouter.clearState();
+            }
+            appRouter.navigateToStep(1);
+        }
+        
+        // Clear form inputs
+        const jdFile = document.getElementById('jd-file');
+        const jdText = document.getElementById('jd-text');
+        const resumeFiles = document.getElementById('resume-files');
+        
+        if (jdFile) jdFile.value = '';
+        if (jdText) jdText.value = '';
+        if (resumeFiles) resumeFiles.value = '';
+        
+        // Clear results display
+        const resultsContent = document.getElementById('results-content');
+        const selectedFilesList = document.getElementById('selected-files-list');
+        
+        if (resultsContent) resultsContent.innerHTML = '';
+        if (selectedFilesList) selectedFilesList.innerHTML = '';
+        
+        // Clear localStorage
+        localStorage.removeItem('ats_app_state');
+        
+        console.log('✅ Session cleared successfully');
+        Utils.showToast('Ready to start a new matching session!', 'success');
+        
+    } catch (error) {
+        console.error('Error starting new matching:', error);
+        Utils.showToast('Error resetting session: ' + error.message, 'error');
+    } finally {
+        Utils.hideLoading();
+    }
+}
+
+// Make functions globally available
+window.startMatching = startMatching;
+window.displayMatchingResults = displayMatchingResults;
+window.startNewMatching = startNewMatching;
+
+
+
+// ✅ NEW FUNCTION: Debug session state
+function debugSessionState() {
+    console.log('═══════════════════════════════════');
+    console.log('🔍 SESSION STATE DEBUG');
+    console.log('═══════════════════════════════════');
+    console.log('appState.sessionId:', appState?.sessionId);
+    console.log('appState.currentStep:', appState?.currentStep);
+    console.log('appRouter.currentSessionId:', appRouter?.currentSessionId);
+    console.log('appRouter.hasActiveResults:', appRouter?.hasActiveResults);
+    console.log('localStorage:', localStorage.getItem('ats_app_state'));
+    console.log('═══════════════════════════════════');
 }
 
 
@@ -1333,47 +1468,19 @@ async function exportHistoryResultsAsJSON(sessionId) {
 /**
  * Reset the application state and start a new matching session
  */
-async function startNewMatching() {
-    const confirmed = confirm('Are you sure you want to start a new matching session? This will reset the current workflow.');
-    
-    if (!confirmed) return;
-    
-    try {
-        Utils.showLoading('Preparing new matching session...');
-        
-        appState.currentStep = 1;
-        appState.sessionId = null;
-        appState.jdData = null;
-        appState.matchingResults = null;
-        
-        if (appRouter) {
-            appRouter.hasActiveResults = false;
-            appRouter.currentSessionId = null;
-            appRouter.clearState();
-            appRouter.navigateToStep(1);
-        }
-        
-        document.getElementById('jd-file').value = '';
-        document.getElementById('jd-text').value = '';
-        document.getElementById('resume-files').value = '';
-        document.getElementById('results-content').innerHTML = '';
-        document.getElementById('selected-files-list').innerHTML = '';
-        
-        Utils.showToast('Ready to start a new matching session!', 'success');
-        
-    } catch (error) {
-        console.error('Error starting new matching:', error);
-        Utils.showToast('Error resetting session: ' + error.message, 'error');
-    } finally {
-        Utils.hideLoading();
-    }
-}
+
 
 // Make function globally available
+// window.startMatching = startMatching;
+// window.displayMatchingResults = displayMatchingResults;
+// window.exportResultsAsCSV = exportResultsAsCSV;
+// window.exportResultsAsJSON = exportResultsAsJSON;
+// window.backToCurrentResults = backToCurrentResults;
+// window.startNewMatching = startNewMatching;
+// window.displayHistoryResultsView = displayHistoryResultsView;
+
 window.startMatching = startMatching;
 window.displayMatchingResults = displayMatchingResults;
-window.exportResultsAsCSV = exportResultsAsCSV;
-window.exportResultsAsJSON = exportResultsAsJSON;
-window.backToCurrentResults = backToCurrentResults;
 window.startNewMatching = startNewMatching;
-window.displayHistoryResultsView = displayHistoryResultsView;
+window.showMatchingReadyScreen = showMatchingReadyScreen;
+window.debugSessionState = debugSessionState;
