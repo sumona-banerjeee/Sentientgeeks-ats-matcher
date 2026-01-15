@@ -1,6 +1,8 @@
 """
 Enhanced LLM-Powered ATS Matching Engine
-FAIR VERSION: Semantic matching, no unfair zeros, intelligent scoring
+PRODUCTION VERSION: HR-Logic Compliance + Fair Scoring
+✅ CHANGE 1: Hard Experience Gate (experience below minimum = clear penalty)
+✅ CHANGE 2: Primary Skill Floor (zero core skills = hard cap)
 """
 
 import spacy
@@ -24,7 +26,7 @@ class MatchingEngine:
             from backend.app.services.llamacpp_service import get_llamacpp_service
             self.llamacpp = get_llamacpp_service()
             self.use_llm = True
-            print("✅ LLM-based intelligent matching enabled (FAIR MODE)")
+            print("✅ LLM-based intelligent matching enabled (HR-COMPLIANT MODE)")
         except Exception as e:
             print(f"⚠️ LLM not available: {e}")
             self.llamacpp = None
@@ -38,18 +40,18 @@ class MatchingEngine:
         manual_priorities: List[Dict] = None
     ) -> dict:
         """
-        LLM-POWERED INTELLIGENT ATS SCORING WITH FAIR MATCHING
+        LLM-POWERED INTELLIGENT ATS SCORING WITH HR-LOGIC COMPLIANCE
         
         KEY FEATURES:
         1. Semantic skill matching (Python matches "Python (Pandas, NumPy)")
         2. Role-based skill inference (Python Developer knows Python)
-        3. Fair scoring for career changers
-        4. No unfair zeros unless truly irrelevant
-        5. Partial credit for similar skills
+        3. ✅ NEW: Hard experience gate (below minimum = clear penalty)
+        4. ✅ NEW: Primary skill floor (zero core skills = hard cap)
+        5. Fair scoring for career changers with relevant skills
         """
         
         print(f"\n{'='*70}")
-        print(f"🧠 FAIR LLM-BASED ATS SCORING")
+        print(f"🧠 HR-COMPLIANT LLM-BASED ATS SCORING")
         print(f"{'='*70}\n")
         
         if not jd_data or not resume_data:
@@ -91,9 +93,28 @@ class MatchingEngine:
                 )
             
             skill_score = skill_analysis.get('skill_match_score', 0)
+            matched_primary_count = skill_analysis.get('matched_primary_count', 0)
+            
+            # ✅ CHANGE 2: PRIMARY SKILL FLOOR
+            # If zero core skills matched, hard cap the skill score
+            if matched_primary_count == 0 and len(jd_primary_skills) > 0:
+                original_skill_score = skill_score
+                skill_score = min(skill_score, 30)  # Hard cap at 30%
+                
+                if original_skill_score > skill_score:
+                    print(f"\n⚠️  PRIMARY SKILL FLOOR APPLIED")
+                    print(f"   Matched primary skills: 0/{len(jd_primary_skills)}")
+                    print(f"   Original skill score: {original_skill_score:.1f}%")
+                    print(f"   Capped skill score: {skill_score:.1f}%")
+                    print(f"   Reason: No core skills matched")
+                    
+                    # Update skill analysis
+                    skill_analysis['skill_match_score'] = skill_score
+                    skill_analysis['primary_skill_floor_applied'] = True
+                    skill_analysis['original_score'] = original_skill_score
             
             print(f"\n✅ SKILL SCORE: {skill_score:.1f}/100")
-            print(f"   Matched: {skill_analysis.get('matched_primary_count', 0)}/{len(jd_primary_skills)}")
+            print(f"   Matched: {matched_primary_count}/{len(jd_primary_skills)}")
             print(f"   Semantic Matches: {skill_analysis.get('semantic_matches_applied', 0)}")
             print(f"   Role Inferences: {skill_analysis.get('role_inferences_applied', 0)}")
             
@@ -114,6 +135,47 @@ class MatchingEngine:
                 )
             
             experience_score = experience_analysis.get('experience_match_score', 0)
+            
+            # ✅ CHANGE 1: HARD EXPERIENCE GATE
+            # Parse experience requirement
+            exp_range = self._parse_experience_range(jd_experience_required)
+            min_experience_required = exp_range['min']
+            
+            # If candidate is below minimum experience, apply penalty
+            if total_experience_years < min_experience_required:
+                original_exp_score = experience_score
+                
+                # Calculate penalty based on how far below minimum
+                experience_gap = min_experience_required - total_experience_years
+                
+                # Penalty formula:
+                # - 0 years when 1+ required: cap at 40%
+                # - Very close to minimum (0.5 year gap): reduce by 25%
+                # - Large gap (2+ years): reduce by 40%
+                
+                if total_experience_years == 0 and min_experience_required >= 1:
+                    # Fresher when experience required: hard cap
+                    experience_score = min(experience_score, 40)
+                else:
+                    # Graduated penalty
+                    penalty_percent = min(40, experience_gap * 20)
+                    reduction = experience_score * (penalty_percent / 100)
+                    experience_score = max(20, experience_score - reduction)
+                
+                if original_exp_score > experience_score:
+                    print(f"\n⚠️  EXPERIENCE GATE APPLIED")
+                    print(f"   Required: {min_experience_required}+ years")
+                    print(f"   Candidate: {total_experience_years} years")
+                    print(f"   Gap: {experience_gap:.1f} years below minimum")
+                    print(f"   Original experience score: {original_exp_score:.1f}%")
+                    print(f"   Penalized score: {experience_score:.1f}%")
+                    print(f"   Reason: Below minimum experience requirement")
+                    
+                    # Update experience analysis
+                    experience_analysis['experience_match_score'] = experience_score
+                    experience_analysis['experience_gate_applied'] = True
+                    experience_analysis['original_score'] = original_exp_score
+                    experience_analysis['experience_gap'] = experience_gap
             
             print(f"\n✅ EXPERIENCE SCORE: {experience_score:.1f}/100")
             print(f"   Role Relevance: {experience_analysis.get('role_relevance_percentage', 0)}%")
@@ -141,16 +203,32 @@ class MatchingEngine:
             
             overall_score = final_analysis.get('overall_score', 0)
             
+            # Add HR compliance flags to final analysis
+            hr_flags = []
+            if skill_analysis.get('primary_skill_floor_applied'):
+                hr_flags.append("No core skills matched")
+            if experience_analysis.get('experience_gate_applied'):
+                hr_flags.append(f"Below minimum experience ({min_experience_required}+ years required)")
+            
+            if hr_flags:
+                final_analysis['hr_compliance_flags'] = hr_flags
+            
             print(f"\n📊 FINAL SCORE: {overall_score:.1f}/100")
             print(f"   Skills (50%): {skill_score:.1f}")
             print(f"   Experience (50%): {experience_score:.1f}")
             print(f"   Recommendation: {final_analysis.get('recommendation', 'N/A')}")
+            
+            if hr_flags:
+                print(f"\n⚠️  HR COMPLIANCE ALERTS:")
+                for flag in hr_flags:
+                    print(f"   • {flag}")
+            
             print(f"{'='*70}\n")
             
             # Build detailed analysis
             detailed_analysis = {
-                "scoring_method": "Fair LLM-Powered Intelligent Matching",
-                "formula": "50% Skills (Semantic + Fuzzy) + 50% Experience (Fair Role Matching)",
+                "scoring_method": "HR-Compliant LLM-Powered Intelligent Matching",
+                "formula": "50% Skills (with primary skill floor) + 50% Experience (with experience gate)",
                 "skill_analysis": skill_analysis,
                 "experience_analysis": experience_analysis,
                 "final_assessment": final_analysis,
@@ -158,7 +236,8 @@ class MatchingEngine:
                     "name": candidate_name,
                     "total_skills": len(resume_skills),
                     "total_experience_years": total_experience_years
-                }
+                },
+                "hr_compliance_flags": hr_flags if hr_flags else None
             }
             
             return {
@@ -345,7 +424,7 @@ class MatchingEngine:
         match_rate = len(matched_primary) / len(primary_skills) if primary_skills else 0
         base_score = match_rate * 100
         
-        # Apply minimum floor
+        # Apply minimum floor (but not if zero matches)
         if len(matched_primary) > 0:
             base_score = max(base_score, 20)
         elif len(resume_skills) > 5:
