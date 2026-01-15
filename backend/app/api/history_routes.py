@@ -162,7 +162,9 @@ async def get_history_details(
                     'resume_id': result.resume_id,
                     'filename': resume.filename,
                     'candidate_name': resume_data.get('name', 'Unknown'),
-                    'overall_score': round(result.overall_score, 2)
+                    'overall_score': round(result.overall_score, 2),
+                    'skill_match_score': round(result.skill_match_score, 2) if result.skill_match_score else 0, 
+                    'experience_score': round(result.experience_score, 2) if result.experience_score else 0    
                 })
         
         return {
