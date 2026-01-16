@@ -1,5 +1,5 @@
 /* =====================================================
-   BASE MODAL SYSTEM (SINGLE SOURCE OF TRUTH)
+   BASE MODAL SYSTEM - ENHANCED VERSION
    ===================================================== */
 
 .modal-overlay {
@@ -10,6 +10,16 @@
     justify-content: center;
     align-items: center;
     z-index: 1000;
+    /* Prevent scrolling */
+    overflow-y: auto;
+    /* Enable clicking outside to close */
+    cursor: pointer;
+}
+
+/* When modal is active, prevent body scrolling */
+body.modal-open {
+    overflow: hidden;
+    height: 100vh;
 }
 
 .modal-content {
@@ -20,6 +30,10 @@
     display: flex;
     flex-direction: column;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    /* Prevent closing when clicking inside modal */
+    cursor: default;
+    /* Ensure modal scrolls if content is too long */
+    overflow: hidden;
 }
 
 /* ---------- Header ---------- */
@@ -30,6 +44,7 @@
     justify-content: space-between;
     align-items: center;
     background: #ffffff;
+    flex-shrink: 0;
 }
 
 .modal-header h3 {
@@ -43,10 +58,19 @@
     font-size: 1.8rem;
     cursor: pointer;
     color: #718096;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
 }
 
 .modal-close:hover {
     color: #2d3748;
+    background: rgba(0, 0, 0, 0.05);
 }
 
 /* ---------- Body ---------- */
@@ -56,46 +80,23 @@
     overflow-y: auto;
 }
 
-/* ---------- Footer (ALWAYS VISIBLE) ---------- */
+/* ---------- Footer ---------- */
 .modal-footer {
     padding: 1rem 2rem;
     border-top: 1px solid #e2e8f0;
     background: #ffffff;
-
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 12px;
-
     position: sticky;
     bottom: 0;
     z-index: 10;
-}
-
-
-/* =====================================================
-   HISTORY MODAL
-   ===================================================== */
-
-#history-modal .modal-content {
-    max-width: 1000px;
-    width: 95%;
-}
-
-#history-modal .results-table {
-    width: 100%;
-    font-size: 0.9rem;
-}
-
-#history-modal .score-badge {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
+    flex-shrink: 0;
 }
 
 /* =====================================================
-   CANDIDATE DETAILS MODAL
+   CANDIDATE DETAILS MODAL - ENHANCED
    ===================================================== */
 
 .candidate-modal-overlay {
@@ -107,10 +108,15 @@
     align-items: center;
     z-index: 1000;
     padding: 1rem;
+    overflow-y: auto;
+    /* Enable clicking outside to close */
+    cursor: pointer;
 }
 
 .candidate-modal-overlay .modal-content {
     max-width: 800px;
+    /* Prevent closing when clicking inside modal */
+    cursor: default;
 }
 
 .candidate-modal-overlay .modal-header {
@@ -132,11 +138,18 @@
 }
 
 /* =====================================================
-   INTERVIEW QUESTIONS MODAL
+   INTERVIEW QUESTIONS MODAL - ENHANCED
    ===================================================== */
+
+.interview-modal {
+    /* Enable clicking outside to close */
+    cursor: pointer;
+}
 
 .interview-modal .modal-content {
     max-width: 900px;
+    /* Prevent closing when clicking inside modal */
+    cursor: default;
 }
 
 .interview-modal .modal-header {
@@ -152,6 +165,83 @@
     justify-content: space-between;
     background: #f8f9fa;
 }
+
+/* =====================================================
+   HISTORY MODAL - ENHANCED
+   ===================================================== */
+
+#history-modal {
+    /* Enable clicking outside to close */
+    cursor: pointer;
+}
+
+#history-modal .modal-content {
+    max-width: 1000px;
+    width: 95%;
+    /* Prevent closing when clicking inside modal */
+    cursor: default;
+}
+
+#history-modal .results-table {
+    width: 100%;
+    font-size: 0.9rem;
+}
+
+#history-modal .score-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* =====================================================
+   JD LIBRARY MODAL - ENHANCED
+   ===================================================== */
+
+#jd-library-modal {
+    /* Enable clicking outside to close */
+    cursor: pointer;
+}
+
+#jd-library-modal .modal-content {
+    /* Prevent closing when clicking inside modal */
+    cursor: default;
+}
+
+/* =====================================================
+   EMERGENCY CANDIDATE MODAL - ENHANCED
+   ===================================================== */
+
+.emergency-candidate-modal {
+    /* Enable clicking outside to close */
+    cursor: pointer;
+}
+
+.emergency-candidate-modal > div {
+    /* Prevent closing when clicking inside modal */
+    cursor: default;
+}
+
+/* =====================================================
+   RESPONSIVE FIXES
+   ===================================================== */
+
+@media (max-width: 768px) {
+    .modal-content {
+        max-width: 95%;
+        margin: 1rem;
+    }
+
+    .modal-body {
+        padding: 1rem;
+    }
+
+    .modal-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
 
 
 /* =====================================================
