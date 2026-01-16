@@ -1,8 +1,8 @@
 """
 Enhanced LLM-Powered ATS Matching Engine
 PRODUCTION VERSION: HR-Logic Compliance + Fair Scoring
-✅ CHANGE 1: Hard Experience Gate (experience below minimum = clear penalty)
-✅ CHANGE 2: Primary Skill Floor (zero core skills = hard cap)
+ CHANGE 1: Hard Experience Gate (experience below minimum = clear penalty)
+ CHANGE 2: Primary Skill Floor (zero core skills = hard cap)
 """
 
 import spacy
@@ -16,9 +16,9 @@ class MatchingEngine:
         """Initialize intelligent matching engine"""
         try:
             self.nlp = spacy.load("en_core_web_md")
-            print("✅ spaCy model loaded")
+            print(" spaCy model loaded")
         except OSError:
-            print("⚠️ spaCy model not found")
+            print(" spaCy model not found")
             self.nlp = None
         
         # Initialize llamacpp service
@@ -26,9 +26,9 @@ class MatchingEngine:
             from backend.app.services.llamacpp_service import get_llamacpp_service
             self.llamacpp = get_llamacpp_service()
             self.use_llm = True
-            print("✅ LLM-based intelligent matching enabled (HR-COMPLIANT MODE)")
+            print(" LLM-based intelligent matching enabled (HR-COMPLIANT MODE)")
         except Exception as e:
-            print(f"⚠️ LLM not available: {e}")
+            print(f"LLM not available: {e}")
             self.llamacpp = None
             self.use_llm = False
     
@@ -45,13 +45,13 @@ class MatchingEngine:
         KEY FEATURES:
         1. Semantic skill matching (Python matches "Python (Pandas, NumPy)")
         2. Role-based skill inference (Python Developer knows Python)
-        3. ✅ NEW: Hard experience gate (below minimum = clear penalty)
-        4. ✅ NEW: Primary skill floor (zero core skills = hard cap)
+        3.  NEW: Hard experience gate (below minimum = clear penalty)
+        4.  NEW: Primary skill floor (zero core skills = hard cap)
         5. Fair scoring for career changers with relevant skills
         """
         
         print(f"\n{'='*70}")
-        print(f"🧠 HR-COMPLIANT LLM-BASED ATS SCORING")
+        print(f" HR-COMPLIANT LLM-BASED ATS SCORING")
         print(f"{'='*70}\n")
         
         if not jd_data or not resume_data:
@@ -69,11 +69,11 @@ class MatchingEngine:
             candidate_name = resume_data.get('name', 'Unknown')
             total_experience_years = resume_data.get('total_experience', 0)
             
-            print(f"📋 JD: {jd_title}")
+            print(f" JD: {jd_title}")
             print(f"   Primary Skills: {len(jd_primary_skills)} required")
             print(f"   Experience: {jd_experience_required}")
             
-            print(f"\n👤 Candidate: {candidate_name}")
+            print(f"\n Candidate: {candidate_name}")
             print(f"   Skills: {len(resume_skills)}")
             print(f"   Experience: {total_experience_years} years")
             
@@ -95,14 +95,14 @@ class MatchingEngine:
             skill_score = skill_analysis.get('skill_match_score', 0)
             matched_primary_count = skill_analysis.get('matched_primary_count', 0)
             
-            # ✅ CHANGE 2: PRIMARY SKILL FLOOR
+            #  CHANGE 2: PRIMARY SKILL FLOOR
             # If zero core skills matched, hard cap the skill score
             if matched_primary_count == 0 and len(jd_primary_skills) > 0:
                 original_skill_score = skill_score
                 skill_score = min(skill_score, 30)  # Hard cap at 30%
                 
                 if original_skill_score > skill_score:
-                    print(f"\n⚠️  PRIMARY SKILL FLOOR APPLIED")
+                    print(f"\n PRIMARY SKILL FLOOR APPLIED")
                     print(f"   Matched primary skills: 0/{len(jd_primary_skills)}")
                     print(f"   Original skill score: {original_skill_score:.1f}%")
                     print(f"   Capped skill score: {skill_score:.1f}%")
@@ -113,7 +113,7 @@ class MatchingEngine:
                     skill_analysis['primary_skill_floor_applied'] = True
                     skill_analysis['original_score'] = original_skill_score
             
-            print(f"\n✅ SKILL SCORE: {skill_score:.1f}/100")
+            print(f"\n SKILL SCORE: {skill_score:.1f}/100")
             print(f"   Matched: {matched_primary_count}/{len(jd_primary_skills)}")
             print(f"   Semantic Matches: {skill_analysis.get('semantic_matches_applied', 0)}")
             print(f"   Role Inferences: {skill_analysis.get('role_inferences_applied', 0)}")
@@ -136,7 +136,7 @@ class MatchingEngine:
             
             experience_score = experience_analysis.get('experience_match_score', 0)
             
-            # ✅ CHANGE 1: HARD EXPERIENCE GATE
+            #  CHANGE 1: HARD EXPERIENCE GATE
             # Parse experience requirement
             exp_range = self._parse_experience_range(jd_experience_required)
             min_experience_required = exp_range['min']
@@ -163,7 +163,7 @@ class MatchingEngine:
                     experience_score = max(20, experience_score - reduction)
                 
                 if original_exp_score > experience_score:
-                    print(f"\n⚠️  EXPERIENCE GATE APPLIED")
+                    print(f"\n  EXPERIENCE GATE APPLIED")
                     print(f"   Required: {min_experience_required}+ years")
                     print(f"   Candidate: {total_experience_years} years")
                     print(f"   Gap: {experience_gap:.1f} years below minimum")
@@ -177,7 +177,7 @@ class MatchingEngine:
                     experience_analysis['original_score'] = original_exp_score
                     experience_analysis['experience_gap'] = experience_gap
             
-            print(f"\n✅ EXPERIENCE SCORE: {experience_score:.1f}/100")
+            print(f"\n EXPERIENCE SCORE: {experience_score:.1f}/100")
             print(f"   Role Relevance: {experience_analysis.get('role_relevance_percentage', 0)}%")
             print(f"   Matching Roles: {len(experience_analysis.get('matching_roles', []))}")
             
@@ -213,13 +213,13 @@ class MatchingEngine:
             if hr_flags:
                 final_analysis['hr_compliance_flags'] = hr_flags
             
-            print(f"\n📊 FINAL SCORE: {overall_score:.1f}/100")
+            print(f"\n FINAL SCORE: {overall_score:.1f}/100")
             print(f"   Skills (50%): {skill_score:.1f}")
             print(f"   Experience (50%): {experience_score:.1f}")
             print(f"   Recommendation: {final_analysis.get('recommendation', 'N/A')}")
             
             if hr_flags:
-                print(f"\n⚠️  HR COMPLIANCE ALERTS:")
+                print(f"\n HR COMPLIANCE ALERTS:")
                 for flag in hr_flags:
                     print(f"   • {flag}")
             
@@ -249,7 +249,7 @@ class MatchingEngine:
             }
             
         except Exception as e:
-            print(f"❌ Error in ATS scoring: {str(e)}")
+            print(f" Error in ATS scoring: {str(e)}")
             traceback.print_exc()
             return self._get_default_score(str(e))
     
@@ -387,7 +387,7 @@ class MatchingEngine:
         skills_weightage: dict
     ) -> dict:
         """Improved fallback with fuzzy matching"""
-        print("⚠️ Using improved fallback skill matching")
+        print(" Using improved fallback skill matching")
         
         # Extract skill names
         resume_skill_names = set()
@@ -473,7 +473,7 @@ class MatchingEngine:
         total_experience_years: float
     ) -> dict:
         """Improved fallback experience matching"""
-        print("⚠️ Using improved fallback experience matching")
+        print("Using improved fallback experience matching")
         
         # Calculate total years
         total_years = total_experience_years if total_experience_years > 0 else \

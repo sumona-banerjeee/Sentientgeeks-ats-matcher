@@ -18,10 +18,10 @@ from ..services.matching_engine import MatchingEngine
 try:
     from ..services.agentic_service import EnhancedAgenticATSService as AgenticATSService
     AGENTIC_AVAILABLE = True
-    print("✅ Agentic AI Service available")
+    print("Agentic AI Service available")
 except ImportError:
     AGENTIC_AVAILABLE = False
-    print("⚠️  Agentic AI Service not available - using traditional matching")
+    print("Agentic AI Service not available - using traditional matching")
 
 router = APIRouter(prefix="/api/matching", tags=["Matching"])
 
@@ -33,48 +33,48 @@ matching_engine = MatchingEngine()
 if USE_AGENTIC_AI:
     try:
         agentic_service = AgenticATSService()
-        print("✅ Initialized Agentic AI Service for matching")
+        print("Initialized Agentic AI Service for matching")
     except Exception as e:
-        print(f"❌ Failed to initialize Agentic AI: {e}")
+        print(f"Failed to initialize Agentic AI: {e}")
         USE_AGENTIC_AI = False
         agentic_service = None
 else:
     agentic_service = None
-    print("✅ Using traditional matching engine")
+    print("Using traditional matching engine")
 
 
 @router.post("/start/{session_id}")
 async def start_matching(session_id: str, db: Session = Depends(get_db)):
     """
-    ✅ FIXED: Start matching with proper session validation
+    Start matching with proper session validation
     Prevents cross-session contamination
     """
     
     print(f"\n{'='*70}")
-    print(f"🚀 MATCHING REQUEST RECEIVED")
+    print(f"MATCHING REQUEST RECEIVED")
     print(f"   Session ID: {session_id}")
     print(f"   Agentic AI: {'ENABLED' if USE_AGENTIC_AI else 'DISABLED'}")
     print(f"{'='*70}\n")
     
-    # ✅ FIX 1: Validate session has resumes BEFORE doing anything
+    # Validate session has resumes BEFORE doing anything
     resumes = db.query(Resume).filter(Resume.session_id == session_id).all()
     if not resumes:
-        print(f"❌ No resumes found for session: {session_id}")
+        print(f"No resumes found for session: {session_id}")
         raise HTTPException(
             status_code=400, 
             detail=f"No resumes found for session {session_id}. Please upload resumes first."
         )
     
-    print(f"✅ Found {len(resumes)} resumes for session {session_id}")
+    print(f"Found {len(resumes)} resumes for session {session_id}")
     
-    # ✅ FIX 2: Validate JD exists and is approved for THIS session
+    # Validate JD exists and is approved for THIS session
     jd = db.query(JobDescription).filter(
         JobDescription.session_id == session_id,
         JobDescription.is_approved == True
     ).first()
     
     if not jd:
-        print(f"❌ No approved JD found for session: {session_id}")
+        print(f"No approved JD found for session: {session_id}")
         raise HTTPException(
             status_code=400, 
             detail=f"JD not found or not approved for session {session_id}"
@@ -85,15 +85,15 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
     if jd.structured_data and isinstance(jd.structured_data, dict):
         job_title = jd.structured_data.get('job_title', jd.structured_data.get('title', 'Unknown Job'))
     
-    print(f"✅ Found approved JD: {job_title}")
+    print(f"Found approved JD: {job_title}")
     
-    # ✅ FIX 3: Delete ONLY existing results for THIS specific session
+    # Delete ONLY existing results for THIS specific session
     existing_count = db.query(MatchingResult).filter(
         MatchingResult.session_id == session_id
     ).count()
     
     if existing_count > 0:
-        print(f"🗑️  Found {existing_count} existing results for session {session_id}")
+        print(f"Found {existing_count} existing results for session {session_id}")
         print(f"   Deleting old results to ensure fresh matching...")
         
         db.query(MatchingResult).filter(
@@ -101,9 +101,9 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
         ).delete()
         db.commit()
         
-        print(f"✅ Deleted {existing_count} old results")
+        print(f"Deleted {existing_count} old results")
     else:
-        print(f"✅ No existing results found - this is a fresh match")
+        print(f"No existing results found - this is a fresh match")
     
     print(f"\n{'='*70}")
     print(f"STARTING MATCHING PROCESS")
@@ -118,14 +118,14 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
     for i, resume in enumerate(resumes):
         # Add delay to avoid Groq API rate limits
         if i > 0:
-            print(f"⏳ Waiting 5 seconds to avoid rate limits...")
+            print(f"Waiting 5 seconds to avoid rate limits...")
             import time
             time.sleep(5)
     
         try:
             print("=" * 70)
-            print(f"📄 Processing resume {i+1}/{len(resumes)}: {resume.filename}")
-            print(f"   Session: {session_id}")  # ✅ Verify session in logs
+            print(f"Processing resume {i+1}/{len(resumes)}: {resume.filename}")
+            print(f"   Session: {session_id}")  # Verify session in logs
             print("=" * 70)
             
             # Ensuring the valid structured data
@@ -133,8 +133,8 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
             resume_data = resume.structured_data if resume.structured_data else {}
             skills_weightage = jd.skills_weightage if jd.skills_weightage else {}
             
-            print(f"📊 JD data keys: {list(jd_data.keys()) if jd_data else 'None'}")
-            print(f"📊 Resume data keys: {list(resume_data.keys()) if resume_data else 'None'}")
+            print(f"JD data keys: {list(jd_data.keys()) if jd_data else 'None'}")
+            print(f"Resume data keys: {list(resume_data.keys()) if resume_data else 'None'}")
             
             # Initializing the scores
             overall_score = 0
@@ -144,7 +144,7 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
             
             if USE_AGENTIC_AI and agentic_service:
                 try:
-                    print("🤖 Using Agentic AI for comprehensive scoring...")
+                    print("Using Agentic AI for comprehensive scoring...")
                     
                     # Using agentic AI to match and score
                     agentic_result = await agentic_service.match_and_score(
@@ -180,11 +180,11 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
                     detailed_analysis['matched_skills'] = agentic_result.get('matched_skills', [])
                     detailed_analysis['missing_skills'] = agentic_result.get('missing_skills', [])
                     
-                    print(f"✅ Agentic Scores - Overall: {overall_score}%, Skills: {skills_score}%, Experience: {experience_score}%")
+                    print(f"Agentic Scores - Overall: {overall_score}%, Skills: {skills_score}%, Experience: {experience_score}%")
                     
                 except Exception as agentic_error:
-                    print(f"❌ Agentic AI failed: {str(agentic_error)}")
-                    print(f"⚠️  Falling back to traditional matching engine...")
+                    print(f"Agentic AI failed: {str(agentic_error)}")
+                    print(f"Falling back to traditional matching engine...")
                     
                     # Fallback to traditional matching
                     ats_score = matching_engine.calculate_ats_score(
@@ -203,7 +203,7 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
                     )
                     
             else:
-                print("✅ Using traditional matching engine...")
+                print("Using traditional matching engine...")
                 
                 # Calculating ATS score using traditional method
                 ats_score = matching_engine.calculate_ats_score(
@@ -221,11 +221,11 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
                     jd_data, resume_data, skills_weightage, ats_score
                 )
             
-            # ✅ FIX 4: Ensure matching result is tied to correct session
-            print(f"💾 Saving scores - Overall: {overall_score}%, Skills: {skills_score}%, Experience: {experience_score}%")
+            # Ensure matching result is tied to correct session
+            print(f"Saving scores - Overall: {overall_score}%, Skills: {skills_score}%, Experience: {experience_score}%")
             
             matching_result = MatchingResult(
-                session_id=session_id,  # ✅ Explicit session binding
+                session_id=session_id,  # Explicit session binding
                 jd_id=jd.id,
                 resume_id=resume.id,
                 overall_score=round(overall_score, 2),
@@ -249,10 +249,10 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
                 }
             })
             
-            print(f"✅ Successfully processed: {resume.filename}\n")
+            print(f"Successfully processed: {resume.filename}\n")
         
         except Exception as e:
-            print(f"❌ Error processing {resume.filename}: {str(e)}")
+            print(f"Error processing {resume.filename}: {str(e)}")
             traceback.print_exc()
             
             matching_results.append({
@@ -263,7 +263,7 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
     
     # RANKING RESUMES BY OVERALL SCORE
     print(f"\n{'='*70}")
-    print("📊 RANKING CANDIDATES")
+    print("RANKING CANDIDATES")
     print(f"{'='*70}\n")
     
     successful_matches = [r for r in matching_results if 'ats_score' in r]
@@ -278,19 +278,19 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
         if matching_result:
             matching_result.rank_position = rank
             scoring_method = matching_result.detailed_analysis.get('scoring_method', 'Unknown')
-            print(f"🏆 Rank #{rank}: {result['filename']} - Score: {result['ats_score']['overall_score']}% [{scoring_method}]")
+            print(f"Rank #{rank}: {result['filename']} - Score: {result['ats_score']['overall_score']}% [{scoring_method}]")
     
     # Committing all changes
     try:
         db.commit()
         print(f"\n{'='*70}")
-        print(f"✅ MATCHING COMPLETED SUCCESSFULLY")
+        print(f"MATCHING COMPLETED SUCCESSFULLY")
         print(f"   Session: {session_id}")
         print(f"   Successful matches: {len(successful_matches)}")
         print(f"   Failed: {len(matching_results) - len(successful_matches)}")
         print(f"{'='*70}\n")
     except Exception as e:
-        print(f"❌ Error saving results: {str(e)}")
+        print(f"Error saving results: {str(e)}")
         db.rollback()
         raise HTTPException(status_code=500, detail="Error saving matching results")
     
@@ -307,34 +307,34 @@ async def start_matching(session_id: str, db: Session = Depends(get_db)):
 @router.get("/results/{session_id}")
 async def get_matching_results(session_id: str, db: Session = Depends(get_db)):
     """
-    ✅ FIXED: Get results for specific session only with proper validation
+    Get results for specific session only with proper validation
     """
     
     print(f"\n{'='*70}")
-    print(f"📊 FETCHING MATCHING RESULTS")
+    print(f"FETCHING MATCHING RESULTS")
     print(f"   Session ID: {session_id}")
     print(f"{'='*70}\n")
     
-    # ✅ FIX: Check if resumes exist for this session first
+    # Check if resumes exist for this session first
     resumes = db.query(Resume).filter(Resume.session_id == session_id).all()
     if not resumes:
-        print(f"❌ No resumes found for session: {session_id}")
+        print(f"No resumes found for session: {session_id}")
         raise HTTPException(
             status_code=400, 
             detail="No resumes found for this session. Please upload resumes first."
         )
     
-    print(f"✅ Found {len(resumes)} resumes for session {session_id}")
+    print(f"Found {len(resumes)} resumes for session {session_id}")
     
-    # ✅ FIX: Get results ONLY for this session, ordered by score
+    # Get results ONLY for this session, ordered by score
     results = db.query(MatchingResult).filter(
         MatchingResult.session_id == session_id
     ).order_by(MatchingResult.overall_score.desc()).all()
     
-    print(f"✅ Found {len(results)} matching results")
+    print(f"Found {len(results)} matching results")
     
     if not results:
-        print(f"⚠️  No matching results found for session: {session_id}")
+        print(f"No matching results found for session: {session_id}")
         raise HTTPException(
             status_code=404, 
             detail=f"No matching results found. Please run the matching process first for the {len(resumes)} uploaded resumes."
@@ -368,7 +368,7 @@ async def get_matching_results(session_id: str, db: Session = Depends(get_db)):
                 "scoring_method": scoring_method
             })
     
-    print(f"✅ Returning {len(detailed_results)} detailed results for session {session_id}")
+    print(f"Returning {len(detailed_results)} detailed results for session {session_id}")
     print(f"{'='*70}\n")
     
     return {
@@ -383,34 +383,34 @@ async def get_matching_results(session_id: str, db: Session = Depends(get_db)):
 @router.get("/detailed/{session_id}/{resume_id}")
 async def get_detailed_analysis(session_id: str, resume_id: int, db: Session = Depends(get_db)):
     """
-    ✅ FIXED: Get detailed analysis for a specific resume in a session
+    FIXED: Get detailed analysis for a specific resume in a session
     """
     
     print(f"\n{'='*70}")
-    print(f"🔍 FETCHING DETAILED ANALYSIS")
+    print(f"FETCHING DETAILED ANALYSIS")
     print(f"   Session: {session_id}")
     print(f"   Resume ID: {resume_id}")
     print(f"{'='*70}\n")
     
-    # ✅ Validate result exists for this session
+    # Validate result exists for this session
     result = db.query(MatchingResult).filter(
         MatchingResult.session_id == session_id,
         MatchingResult.resume_id == resume_id
     ).first()
     
     if not result:
-        print(f"❌ No matching result found for resume {resume_id} in session {session_id}")
+        print(f"No matching result found for resume {resume_id} in session {session_id}")
         raise HTTPException(status_code=404, detail="Matching result not found")
     
-    # ✅ Validate resume and JD exist
+    # Validate resume and JD exist
     resume = db.query(Resume).filter(Resume.id == resume_id).first()
     jd = db.query(JobDescription).filter(JobDescription.session_id == session_id).first()
     
     if not resume or not jd:
-        print(f"❌ Resume or JD not found")
+        print(f"Resume or JD not found")
         raise HTTPException(status_code=404, detail="Resume or JD not found")
     
-    print(f"✅ Found matching result and related data")
+    print(f"Found matching result and related data")
     
     # Extracting detailed personal information
     resume_data = resume.structured_data or {}
@@ -455,7 +455,7 @@ async def get_detailed_analysis(session_id: str, resume_id: int, db: Session = D
             "key_highlights": detailed_analysis.get('key_highlights', [])
         }
     
-    print(f"✅ Returning detailed analysis")
+    print(f"Returning detailed analysis")
     print(f"   Rank: #{result.rank_position}")
     print(f"   Overall Score: {result.overall_score}%")
     print(f"   Scoring Method: {scoring_method}")
@@ -467,7 +467,7 @@ async def get_detailed_analysis(session_id: str, resume_id: int, db: Session = D
             "filename": resume.filename,
             "personal_info": personal_info,
             "professional_info": professional_info,
-            "structured_data": resume_data  # ✅ Include full structured data
+            "structured_data": resume_data  # Include full structured data
         },
         "jd_info": {
             "job_title": jd_data.get('job_title', 'Unknown'),
@@ -488,7 +488,7 @@ async def get_detailed_analysis(session_id: str, resume_id: int, db: Session = D
     }
 
 
-# ✅ HELPER FUNCTION FOR TRADITIONAL SCORING
+# HELPER FUNCTION FOR TRADITIONAL SCORING
 def _calculate_traditional_scores(
     jd_data: dict, 
     resume_data: dict, 
@@ -500,7 +500,7 @@ def _calculate_traditional_scores(
     Traditional rule-based scoring has been fully deprecated.
     """
 
-    # ✅ DIRECTLY RETURN LLM SCORES
+    # DIRECTLY RETURN LLM SCORES
     skills_score = ats_score.get('skill_match_score', 0)
     experience_score = ats_score.get('experience_score', 0)
 
@@ -517,7 +517,7 @@ def _calculate_traditional_scores(
     return skills_score, experience_score
 
 
-# ✅ OPTIONAL: Debug endpoint to check session state
+# Debug endpoint to check session state
 @router.get("/debug/session/{session_id}")
 async def debug_session_state(session_id: str, db: Session = Depends(get_db)):
     """

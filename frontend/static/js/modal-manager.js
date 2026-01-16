@@ -1,13 +1,4 @@
-// ============================================================================
-// UNIVERSAL MODAL MANAGEMENT SYSTEM
-// ============================================================================
-// Handles body scroll locking and click-outside-to-close for ALL modals
-// ============================================================================
 
-/**
- * Modal Manager Class
- * Centralized management for all modal interactions
- */
 class ModalManager {
     constructor() {
         this.activeModals = new Set();

@@ -227,7 +227,7 @@ async def get_user_stats(
             total_resumes = sum(h.total_resumes for h in history_records)
             total_matches = sum(h.successful_matches for h in history_records)
             
-            # ✅ COMPLETE RETURN STATEMENT
+            # COMPLETE RETURN STATEMENT
             return {
                 "status": "success",
                 "user": current_user.username,
@@ -242,7 +242,7 @@ async def get_user_stats(
                 }
             }
         
-        # ✅ ADD FALLBACK FOR OTHER ROLES
+        # ADD FALLBACK FOR OTHER ROLES
         else:
             raise HTTPException(
                 status_code=403, 

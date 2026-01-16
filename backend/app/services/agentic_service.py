@@ -22,7 +22,7 @@ class EnhancedAgenticATSService:
                 base_url="https://api.perplexity.ai",
                 temperature=0.1
             )
-            print(f"✅ Using Perplexity: {settings.PERPLEXITY_MODEL}")
+            print(f"Using Perplexity: {settings.PERPLEXITY_MODEL}")
 
         elif self.use_groq:
             self.llm = LLM(
@@ -30,7 +30,7 @@ class EnhancedAgenticATSService:
                 api_key=os.getenv("GROQ_API_KEY"),
                 temperature=0.1
             )
-            print(f"✅ Using Groq: {settings.GROQ_MODEL}")
+            print(f"Using Groq: {settings.GROQ_MODEL}")
 
         else:
             self.llm = LLM(
@@ -38,7 +38,7 @@ class EnhancedAgenticATSService:
                 api_key=os.getenv("OPENAI_API_KEY"),
                 temperature=0.1
             )
-            print(f"✅ Using OpenAI: {settings.OPENAI_MODEL}")
+            print(f"Using OpenAI: {settings.OPENAI_MODEL}")
 
 
         # Initialize specialized agents
@@ -288,7 +288,7 @@ class EnhancedAgenticATSService:
                 "recommendation": scoring_data.get("recommendation", "MODERATE_FIT")
             }
         except Exception as e:
-            print(f"❌ Agentic scoring failed: {e}")
+            print(f"Agentic scoring failed: {e}")
             # Return fallback scores
             return {
                 "overall_score": 0,
@@ -323,17 +323,17 @@ class EnhancedAgenticATSService:
             if json_match:
                 return json.loads(json_match.group())
         
-            print(f"⚠️ Could not extract JSON from: {result_str[:500]}")
+            print(f" Could not extract JSON from: {result_str[:500]}")
             return {"error": f"Failed to parse {operation}", "raw_response": result_str[:200]}
         
         except Exception as e:
-            print(f"❌ Parse error in {operation}: {str(e)}")
+            print(f" Parse error in {operation}: {str(e)}")
             return {"error": f"Failed to parse {operation}", "exception": str(e)}
     
     async def refine_job_description_structure(self, current_structure: Dict, feedback: str) -> Dict[str, Any]: 
         """Refine JD structure based on user feedback"""
-        print(f"🤖 Refining JD structure with Agentic AI based on feedback...")
-        print(f"📝 Feedback: {feedback}")
+        print(f" Refining JD structure with Agentic AI based on feedback...")
+        print(f" Feedback: {feedback}")
     
         refinement_agent = Agent(
             role="Job Description Refinement Specialist",
@@ -384,17 +384,17 @@ class EnhancedAgenticATSService:
         )
     
         try:
-            print("🚀 Executing refinement crew...")
+            print(" Executing refinement crew...")
             result = crew.kickoff()
             result_str = str(result)
         
             # Try to parse as JSON directly
             try:
                 refined_data = json.loads(result_str)
-                print("✅ Successfully parsed JSON directly")
+                print(" Successfully parsed JSON directly")
                 return refined_data
             except json.JSONDecodeError:
-                print("⚠️ Direct JSON parsing failed, trying regex extraction...")
+                print(" Direct JSON parsing failed, trying regex extraction...")
             
                 json_patterns = [
                     r'```json\s*(\{[\s\S]*?\})\s*```',
@@ -408,7 +408,7 @@ class EnhancedAgenticATSService:
                         try:
                             json_str = match.group(1).strip()
                             refined_data = json.loads(json_str)
-                            print(f"✅ Successfully extracted JSON using pattern")
+                            print(f" Successfully extracted JSON using pattern")
                             return refined_data
                         except json.JSONDecodeError:
                             continue
@@ -416,5 +416,5 @@ class EnhancedAgenticATSService:
                 raise Exception("Failed to parse refined structure from AI response")
     
         except Exception as e:
-            print(f"❌ Agentic AI refinement error: {str(e)}")
+            print(f" Agentic AI refinement error: {str(e)}")
             raise Exception(f"Agentic refinement failed: {str(e)}")

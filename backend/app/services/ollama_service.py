@@ -22,7 +22,7 @@ class OllamaService:
         if not self.model:
             raise ValueError("OLLAMA_MODEL not configured in .env")
         
-        print(f"✅ OllamaService initialized: {self.base_url} | Model: {self.model}")
+        print(f" OllamaService initialized: {self.base_url} | Model: {self.model}")
     
     def _make_request(self, prompt: str, system_prompt: str = None, temperature: float = 0.2) -> str:
         """
@@ -53,7 +53,7 @@ class OllamaService:
             if system_prompt:
                 payload["system"] = system_prompt
             
-            print(f"📡 Ollama Request to {self.base_url}/api/generate")
+            print(f" Ollama Request to {self.base_url}/api/generate")
             print(f"   Model: {self.model}")
             print(f"   Prompt Length: {len(prompt)} chars")
             
@@ -74,7 +74,7 @@ class OllamaService:
             if not generated_text:
                 raise ValueError("Empty response from Ollama")
             
-            print(f"✅ Ollama Response: {len(generated_text)} chars")
+            print(f" Ollama Response: {len(generated_text)} chars")
             
             return generated_text.strip()
         
@@ -91,7 +91,7 @@ class OllamaService:
         """
         Extract structured data from job description
         """
-        print("🔍 Structuring Job Description with Ollama...")
+        print(" Structuring Job Description with Ollama...")
         
         system_prompt = """You are an expert HR assistant specializing in analyzing job descriptions. 
 Extract information and return ONLY valid JSON with no extra text."""
@@ -126,7 +126,7 @@ Return ONLY the JSON object, no explanations.
         """
         Extract structured data from resume
         """
-        print("🔍 Extracting Resume Information with Ollama...")
+        print(" Extracting Resume Information with Ollama...")
         
         system_prompt = """You are an expert resume parser. Extract information accurately and return ONLY valid JSON."""
         
@@ -188,7 +188,7 @@ Return ONLY valid JSON.
         """
         Refine JD structure based on user feedback
         """
-        print(f"🔧 Refining structure with Ollama based on feedback...")
+        print(f" Refining structure with Ollama based on feedback...")
         
         system_prompt = """You are an expert at refining job descriptions based on feedback. 
 Apply changes precisely and return ONLY the updated JSON."""

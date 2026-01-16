@@ -159,7 +159,7 @@ GOOD-TO-HAVE SKILLS (Secondary):
 HR SKILL WEIGHTAGE (Importance):
 {json.dumps(skills_weightage, indent=2)}
 
-🔍 SMART MATCHING RULES:
+SMART MATCHING RULES:
 
 1. FUZZY SKILL MATCHING:
    Examples:
@@ -313,14 +313,14 @@ Return ONLY JSON, no markdown.
             
             # Apply minimum floor if ANY skills matched
             if matched_count > 0 and score < 15:
-                print(f"⬆️ MINIMUM FLOOR: Raising score from {score} to 15 (has some relevant skills)")
+                print(f" MINIMUM FLOOR: Raising score from {score} to 15 (has some relevant skills)")
                 result['skill_match_score'] = 15
                 result['minimum_floor_applied'] = True
             
             # Apply domain relevance check
             domain_relevance = result.get('domain_relevance', {}).get('relevance_score', 100)
             if domain_relevance < 30 and score > 25:
-                print(f"⬇️ DOMAIN CHECK: Capping score to 25 due to low domain relevance ({domain_relevance}%)")
+                print(f"DOMAIN CHECK: Capping score to 25 due to low domain relevance ({domain_relevance}%)")
                 result['skill_match_score'] = min(score, 25)
                 result['domain_cap_applied'] = True
             
@@ -406,7 +406,7 @@ CANDIDATE EXPERIENCE:
 - Timeline:
 {json.dumps(exp_summary, indent=2)}
 
-🔍 SMART ROLE MATCHING RULES:
+SMART ROLE MATCHING RULES:
 
 Target Role: "{jd_role}"
 
@@ -447,7 +447,7 @@ ROLE SIMILARITY SCORING (BE FAIR):
 
 IMPORTANT: If skill_match_score > 40%, give benefit of doubt - they clearly have relevant skills!
 
-🔴 EXPERIENCE CEILING RULES (FAIR):
+EXPERIENCE CEILING RULES (FAIR):
 
 For JD requiring "{jd_experience_required}":
 
@@ -530,7 +530,7 @@ Return this EXACT JSON format:
   "reasoning": "Fair explanation of scoring with career context"
 }}
 
-🔴 CRITICAL REMINDERS:
+CRITICAL REMINDERS:
 1. Be FAIR with role matching - similar roles get good scores
 2. Consider skill_match_score - if high, be generous with experience
 3. Don't penalize career changers with relevant skills
@@ -550,7 +550,7 @@ Return ONLY JSON, no markdown.
             
             # If skill score is high but experience score is too low, adjust
             if skill_match_score > 40 and exp_score < 30 and role_relevance < 40:
-                print(f"⬆️ SKILL-BASED BOOST: Raising experience score due to high skill match")
+                print(f" SKILL-BASED BOOST: Raising experience score due to high skill match")
                 result['experience_match_score'] = min(exp_score + 15, 50)
                 result['skill_based_boost_applied'] = True
             

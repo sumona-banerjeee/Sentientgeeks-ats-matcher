@@ -34,7 +34,7 @@ async def upload_resumes(
     llm_service = LLMService()
     
     print(f"\n{'='*60}")
-    print(f"🚀 BATCH UPLOAD STARTED: {len(files)} resumes")
+    print(f"BATCH UPLOAD STARTED: {len(files)} resumes")
     print(f"Session ID: {session_id}")
     print(f"{'='*60}\n")
     
@@ -57,7 +57,7 @@ async def upload_resumes(
         for resume in existing_resumes
     }
     
-    print(f"📋 Found {len(existing_filenames)} existing resumes in session")
+    print(f"Found {len(existing_filenames)} existing resumes in session")
     
     # Track filenames in current upload
     current_batch_filenames = set()
@@ -71,7 +71,7 @@ async def upload_resumes(
         batch_end = min((batch_num + 1) * BATCH_SIZE, len(files))
         batch_files = files[batch_start:batch_end]
         
-        print(f"\n📦 Processing Batch {batch_num + 1}/{total_batches} ({len(batch_files)} resumes)...")
+        print(f"\n Processing Batch {batch_num + 1}/{total_batches} ({len(batch_files)} resumes)...")
         
         # Collect resumes to add in this batch
         batch_resumes_to_add = []
@@ -84,7 +84,7 @@ async def upload_resumes(
                 # CHECK 1: Already exists in database?
                 if normalized_filename in existing_filenames:
                     existing_name = existing_filenames[normalized_filename]
-                    print(f"⚠️ DUPLICATE (DB): {original_filename} matches '{existing_name}' - SKIPPING")
+                    print(f" DUPLICATE (DB): {original_filename} matches '{existing_name}' - SKIPPING")
                     skipped_duplicates.append({
                         "filename": original_filename,
                         "matched_existing": existing_name,
@@ -95,7 +95,7 @@ async def upload_resumes(
                 
                 # CHECK 2: Already in current batch?
                 if normalized_filename in current_batch_filenames:
-                    print(f"⚠️ DUPLICATE (BATCH): {original_filename} - SKIPPING")
+                    print(f" DUPLICATE (BATCH): {original_filename} - SKIPPING")
                     skipped_duplicates.append({
                         "filename": original_filename,
                         "reason": "Duplicate in current upload batch",
@@ -148,10 +148,10 @@ async def upload_resumes(
                     'normalized': normalized_filename
                 })
                 
-                print(f"✅ PROCESSED: {original_filename}")
+                print(f"PROCESSED: {original_filename}")
                 
             except Exception as e:
-                print(f"❌ ERROR: {file.filename} - {str(e)}")
+                print(f"ERROR: {file.filename} - {str(e)}")
                 failed_resumes.append({
                     "filename": file.filename,
                     "processing_status": "failed",
@@ -182,10 +182,10 @@ async def upload_resumes(
                     "processing_status": "success"
                 })
             
-            print(f"✅ Batch {batch_num + 1} committed ({len(batch_resumes_to_add)} resumes)")
+            print(f"Batch {batch_num + 1} committed ({len(batch_resumes_to_add)} resumes)")
             
         except Exception as e:
-            print(f"❌ Batch commit error: {e}")
+            print(f"Batch commit error: {e}")
             db.rollback()
             
             # Mark all batch items as failed and remove from tracking
@@ -202,11 +202,11 @@ async def upload_resumes(
                     del existing_filenames[item['normalized']]
     
     print(f"\n{'='*60}")
-    print(f"📊 UPLOAD SUMMARY:")
-    print(f"   Total Files Uploaded: {len(files)}")
-    print(f"   ✅ Successfully Processed: {len(processed_resumes)}")
-    print(f"   ⚠️  Duplicates Skipped: {len(skipped_duplicates)}")
-    print(f"   ❌ Failed: {len(failed_resumes)}")
+    print(f"UPLOAD SUMMARY:")
+    print(f"Total Files Uploaded: {len(files)}")
+    print(f"Successfully Processed: {len(processed_resumes)}")
+    print(f"Duplicates Skipped: {len(skipped_duplicates)}")
+    print(f"Failed: {len(failed_resumes)}")
     print(f"{'='*60}\n")
     
     return {

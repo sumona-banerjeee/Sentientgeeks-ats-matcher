@@ -52,7 +52,7 @@ async def save_jd_to_library(
         db.commit()
         db.refresh(jd_library)
         
-        print(f"✅ JD saved to library: {jd_library.jd_name} (ID: {jd_library.id})")
+        print(f"JD saved to library: {jd_library.jd_name} (ID: {jd_library.id})")
         
         return {
             "status": "success",

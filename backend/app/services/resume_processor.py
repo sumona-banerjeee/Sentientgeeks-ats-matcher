@@ -464,7 +464,7 @@ class ResumeProcessor:
                 enhanced_data['experience_timeline']
             )
     
-        # ✅ ENSURE SKILLS IS ALWAYS AN ARRAY - NORMALIZE FIRST
+        # ENSURE SKILLS IS ALWAYS AN ARRAY - NORMALIZE FIRST
         if 'skills' in enhanced_data:
             # Normalize skills to array format (handles string, dict, list, etc.)
             enhanced_data['skills'] = self.normalize_skills_to_array(enhanced_data['skills'])
@@ -486,11 +486,11 @@ class ResumeProcessor:
             # If no skills key exists, ensure empty array
             enhanced_data['skills'] = []
     
-        # ✅ FINAL VALIDATION: Ensure skills is a list
+        # FINAL VALIDATION: Ensure skills is a list
         if not isinstance(enhanced_data['skills'], list):
             enhanced_data['skills'] = self.normalize_skills_to_array(enhanced_data['skills'])
         
-        # ✅ ENSURE EDUCATION IS PRESENT
+        # ENSURE EDUCATION IS PRESENT
         if 'education' not in enhanced_data or not enhanced_data['education']:
             # Extract education from original text if available
             original_text = raw_resume_data.get('original_text', '')
@@ -499,7 +499,7 @@ class ResumeProcessor:
             else:
                 enhanced_data['education'] = ["No education information available"]
         
-        # ✅ ENSURE CERTIFICATIONS IS PRESENT
+        # ENSURE CERTIFICATIONS IS PRESENT
         if 'certifications' not in enhanced_data or not enhanced_data['certifications']:
             # Extract certifications from original text if available
             original_text = raw_resume_data.get('original_text', '')

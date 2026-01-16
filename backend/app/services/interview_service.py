@@ -10,9 +10,9 @@ class InterviewService:
             from backend.app.services.llamacpp_service import get_llamacpp_service
             self.llamacpp_service = get_llamacpp_service()
             self.use_llamacpp = True
-            print("✅ InterviewService initialized with llama.cpp")
+            print(" InterviewService initialized with llama.cpp")
         except Exception as e:
-            print(f"❌ Failed to initialize llama.cpp: {e}")
+            print(f" Failed to initialize llama.cpp: {e}")
             self.use_llamacpp = False
             self.llamacpp_service = None
     
@@ -64,7 +64,7 @@ Return ONLY the JSON array, no explanations or markdown.
 """
 
         try:
-            print(f"🎯 Generating interview questions for {job_title} using llama.cpp...")
+            print(f" Generating interview questions for {job_title} using llama.cpp...")
             
             if self.use_llamacpp and self.llamacpp_service:
                 # Use llama.cpp
@@ -81,18 +81,18 @@ Generate high-quality, practical interview questions. Return ONLY valid JSON arr
                 questions = self._parse_questions_response(response)
                 
                 if questions and len(questions) >= 10:
-                    print(f"✅ Generated {len(questions)} questions using llama.cpp")
+                    print(f" Generated {len(questions)} questions using llama.cpp")
                     return questions[:10]  # Return exactly 10 questions
                 else:
-                    print(f"⚠️ llama.cpp returned insufficient questions, generating fallback")
+                    print(f" llama.cpp returned insufficient questions, generating fallback")
                     return self._generate_fallback_questions(all_skills, job_title)
             
             else:
-                print("⚠️ llama.cpp not available, using fallback questions")
+                print(" llama.cpp not available, using fallback questions")
                 return self._generate_fallback_questions(all_skills, job_title)
                     
         except Exception as e:
-            print(f"❌ Error generating interview questions: {str(e)}")
+            print(f" Error generating interview questions: {str(e)}")
             return self._generate_fallback_questions(all_skills, job_title)
     
     def _parse_questions_response(self, response: str) -> List[str]:
@@ -143,7 +143,7 @@ Generate high-quality, practical interview questions. Return ONLY valid JSON arr
     
     def _generate_fallback_questions(self, skills: List[str], job_title: str) -> List[str]:
         """Generate fallback questions when API fails"""
-        print("🔨 Generating fallback questions...")
+        print(" Generating fallback questions...")
         
         base_questions = [
             f"Describe a challenging project you've worked on as a {job_title} and how you overcame technical obstacles.",

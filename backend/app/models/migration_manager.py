@@ -46,7 +46,7 @@ class DatabaseMigrationManager:
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
         self.db_type = self._detect_database_type()
         
-        print(f"✅ Migration Manager initialized for: {self.db_type}")
+        print(f"Migration Manager initialized for: {self.db_type}")
     
     def _detect_database_type(self) -> str:
         """Detect database type from URL"""
@@ -68,7 +68,7 @@ class DatabaseMigrationManager:
                 conn.execute(text("SELECT 1"))
             return True
         except Exception as e:
-            print(f"❌ Database connection failed: {e}")
+            print(f"Database connection failed: {e}")
             return False
     
     def get_existing_tables(self) -> List[str]:
@@ -87,21 +87,21 @@ class DatabaseMigrationManager:
             Tuple of (created_tables, existing_tables)
         """
         print("\n" + "="*70)
-        print(f"🔧 DATABASE MIGRATION: {self.db_type}")
+        print(f"DATABASE MIGRATION: {self.db_type}")
         print("="*70)
         
         existing_tables = self.get_existing_tables()
-        print(f"\n📊 Existing tables: {len(existing_tables)}")
+        print(f"\n Existing tables: {len(existing_tables)}")
         
         if existing_tables:
             print("   " + "\n   ".join(existing_tables))
         
         if force:
-            print("\n⚠️  WARNING: Dropping all existing tables...")
+            print("\n WARNING: Dropping all existing tables...")
             Base.metadata.drop_all(bind=self.engine)
-            print("   ✅ All tables dropped")
+            print(" All tables dropped")
         
-        print("\n🔨 Creating tables...")
+        print("\n Creating tables...")
         
         # Create all tables defined in models
         Base.metadata.create_all(bind=self.engine, checkfirst=True)
@@ -110,12 +110,12 @@ class DatabaseMigrationManager:
         new_tables = self.get_existing_tables()
         created_tables = [t for t in new_tables if t not in existing_tables]
         
-        print(f"\n✅ Migration completed!")
+        print(f"\n Migration completed!")
         print(f"   • Total tables: {len(new_tables)}")
         print(f"   • Newly created: {len(created_tables)}")
         
         if created_tables:
-            print("\n📦 New tables created:")
+            print("\n New tables created:")
             for table in created_tables:
                 print(f"   ✓ {table}")
         
@@ -156,7 +156,7 @@ class DatabaseMigrationManager:
         default_users = UserConfig.get_default_users()
         
         if not default_users:
-            print("❌ No users configured in .env DEFAULT_USERS")
+            print(" No users configured in .env DEFAULT_USERS")
             return 0, 0
         
         db = self.SessionLocal()
@@ -171,7 +171,7 @@ class DatabaseMigrationManager:
                 ).first()
                 
                 if existing_user:
-                    print(f"⚠️  User '{user_data['username']}' already exists - skipping")
+                    print(f"  User '{user_data['username']}' already exists - skipping")
                     skipped_count += 1
                     continue
                 
@@ -186,11 +186,11 @@ class DatabaseMigrationManager:
                 
                 db.add(new_user)
                 created_count += 1
-                print(f"✅ Created user: {user_data['username']} ({user_data['role']})")
+                print(f" Created user: {user_data['username']} ({user_data['role']})")
             
             db.commit()
             
-            print(f"\n📊 Summary:")
+            print(f"\n Summary:")
             print(f"   • Users created: {created_count}")
             print(f"   • Users skipped: {skipped_count}")
             print(f"   • Total users: {len(default_users)}")
@@ -199,7 +199,7 @@ class DatabaseMigrationManager:
         
         except Exception as e:
             db.rollback()
-            print(f"❌ Error creating users: {e}")
+            print(f" Error creating users: {e}")
             raise
         finally:
             db.close()
@@ -213,12 +213,12 @@ class DatabaseMigrationManager:
             force: Force recreate tables (DANGEROUS!)
         """
         print("\n" + "="*70)
-        print("🚀 FULL DATABASE MIGRATION")
+        print(" FULL DATABASE MIGRATION")
         print("="*70)
         
         # Step 1: Check database connection
         if not self.check_database_exists():
-            print("❌ Cannot connect to database. Aborting migration.")
+            print(" Cannot connect to database. Aborting migration.")
             return False
         
         # Step 2: Create tables
@@ -226,7 +226,7 @@ class DatabaseMigrationManager:
         
         # Step 3: Verify tables
         verification = self.verify_tables()
-        print("\n🔍 Table Verification:")
+        print("\n Table Verification:")
         for table, exists in verification.items():
             status = "✅" if exists else "❌"
             print(f"   {status} {table}")
@@ -234,7 +234,7 @@ class DatabaseMigrationManager:
         all_tables_exist = all(verification.values())
         
         if not all_tables_exist:
-            print("\n❌ Some required tables are missing!")
+            print("\n Some required tables are missing!")
             return False
         
         # Step 4: Create default users (if requested)
@@ -242,7 +242,7 @@ class DatabaseMigrationManager:
             created_users, skipped_users = self.create_default_users()
         
         print("\n" + "="*70)
-        print("✅ MIGRATION COMPLETED SUCCESSFULLY!")
+        print(" MIGRATION COMPLETED SUCCESSFULLY!")
         print("="*70)
         print(f"\nDatabase: {self.db_type}")
         print(f"Tables: {len(self.get_existing_tables())}")
@@ -250,7 +250,7 @@ class DatabaseMigrationManager:
         if create_users:
             print(f"Users: {created_users} created, {skipped_users} existing")
         
-        print("\n🎉 Your database is ready!")
+        print("\n Your database is ready!")
         
         return True
     

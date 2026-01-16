@@ -35,11 +35,11 @@ settings = Settings()
 # Validation on startup
 if settings.USE_OLLAMA:
     print("\n" + "="*60)
-    print("🤖 OLLAMA INFERENCE MODE ENABLED")
+    print("OLLAMA INFERENCE MODE ENABLED")
     print("="*60)
     print(f"   Endpoint: {settings.OLLAMA_BASE_URL}")
     print(f"   Model: {settings.OLLAMA_MODEL}")
     print(f"   Timeout: {settings.OLLAMA_TIMEOUT}s")
     print("="*60 + "\n")
 else:
-    print("⚠️ WARNING: Ollama is disabled in config!")
+    print("WARNING: Ollama is disabled in config!")

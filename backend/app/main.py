@@ -173,7 +173,7 @@ async def not_found_handler(request, exc):
 #Main entry point
 if __name__ == "__main__":
     print("\n" + "=" * 70)
-    print("🚀 Starting SentientGeeks ATS Resume Matcher API...")
+    print(" Starting SentientGeeks ATS Resume Matcher API...")
     print("=" * 70)
     uvicorn.run(
         app,
